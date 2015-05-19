@@ -1,0 +1,39 @@
+create/
+    loadrobot herb2_padded_nosensors.robot.xml/
+    robot Herb2/
+    activemanipindex 0/
+    doobserve/
+    epsilon 0.10/
+    epsilon_self 0.02/
+    obs_factor .6/
+    obs_factor_self .4/
+    jointpadding 0.001/
+    q0 5.65 -1.76 -0.26  1.96 -1.15 0.87 -1.43/ 
+    q1 3.47 -1.56  0.24  2.86 -1.81 -1.38 -1.31 
+
+addtsr/
+    pose_0_w 1 -0.2 1 0 0 0/
+    pose_w_e 0 0 0 0 0 0/
+    bounds -0.125 0.125/
+           -0.125 0.125/
+           -0.125 0.125/
+           -4    4   /
+           -4    4   /
+           -4    4   /
+    starttime 0.25/
+    endtime 0.75
+
+viewtsr
+
+iterate/
+    alpha 0.1/
+    n 20/
+    n_max 20/
+    nolocal/
+    obstol 0.00000001/
+    doglobal/
+    min_global_iter 0/
+#    max_global_iter 1000/
+#    max_local_iter  1000/
+    gamma 0.01
+

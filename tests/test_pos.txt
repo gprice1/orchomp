@@ -1,0 +1,27 @@
+create/
+    robot Herb2/
+    activemanipindex 0/
+    doobserve/
+    epsilon 0.10/
+    epsilon_self 0.02/
+    obs_factor .9/
+    obs_factor_self .1/
+    jointpadding 0.001/
+    q0 4.8 -1 0 0.8 0 0 0 /
+    q1 4.8  0.5  0.00  0.00  0.00  0.00  0.00
+
+computedistancefield getall
+
+iterate/
+    alpha 0.01/
+    n 100/
+    n_max 100/
+    dolocal/
+    obstol 0.000000001/
+    doglobal/
+    min_global_iter 15/
+    max_global_iter 100/
+    max_local_iter 100/
+    gamma 0.05
+
+

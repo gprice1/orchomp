@@ -1,0 +1,23 @@
+create/
+    loadrobot herb2_padded_nosensors.robot.xml/
+#    loadrobot herb2_padded.robot.xml/
+    robot Herb2/
+#    robot BarretWAM/
+    alpha 0.1/
+    n 8/
+    n_max 100/
+    nolocal/
+    doglobal/
+#    randomstart/
+    doobserve/
+#    nofactory/
+#    nocollider/
+    q0 5.4503 1.40149 -1.78733 0.0108628 -0.484014 0.906701 0.466528 0.527198  0.232302 2.494  0.243557 2.45003 -0.991238 -1.2314 0.63054 0.357284 0.730436 1.34787 2.35173 1.48531 1.53856 1.51222 -2.37659 0.356174 /
+    q1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+
+
+iterate
+
+gettraj
+
+execute
