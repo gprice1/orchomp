@@ -17,6 +17,7 @@ include_directories(${OpenRAVE_INCLUDE_DIRS})
 link_directories(${OpenRAVE_LIBRARY_DIRS})
 
 add_subdirectory( MOTION_OPTIMIZER_DIRECTORY )
+include_directories( MOTION_OPTIMIZER_DIRECTORY )
 
 #the libraries necessary for orchomp.
 set( ORCHOMPLIBS   

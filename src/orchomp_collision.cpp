@@ -18,7 +18,7 @@ void assertJacobianIsEquivalent(const Eigen::MatrixBase<Derived> & mat,
 
 
 //the constuctor needs a pointer to the robot in addition to the spaces.
-SphereCollisionHelper::SphereCollisionHelper( 
+SphereCollisionCostFunction::SphereCollisionCostFunction( 
                        size_t ncspace,
                        mod * module,
                        double gamma, 
@@ -47,7 +47,7 @@ SphereCollisionHelper::SphereCollisionHelper(
 
 }
 
-SphereCollisionHelper::~SphereCollisionHelper(){
+SphereCollisionCostFunction::~SphereCollisionCostFunction(){
     if ( pruner ){ delete pruner; }
 }
 
@@ -77,23 +77,8 @@ OpenRAVE::dReal computeCostFromDist( OpenRAVE::dReal dist,
     return 0;
 
 }
-//The main call for this class.
-//Find the workspace collision gradient for the 
-//  current trajectory.
-double SphereCollisionHelper::addToGradient(chomp::ConstMatMap& xi,
-                             const chomp::MatX& pinit,
-                             const chomp::MatX& pgoal,
-                             double dt,
-                             chomp::MatMap& g)
-{
-    
-    double val = 100;
-    RAVELOG_ERROR( "This function has not yet been implemented\n");
-    return val;
-}
 
-
-double SphereCollisionHelper::addToGradient(const chomp::MatX& xi,
+double SphereCollisionCostFunction::addToGradient(const chomp::MatX& xi,
                                             const chomp::MatX& pinit,
                                             const chomp::MatX& pgoal,
                                             double dt,
@@ -161,7 +146,7 @@ double SphereCollisionHelper::addToGradient(const chomp::MatX& xi,
 
 }
 
-void SphereCollisionHelper::getCollisionCostAndGradient( int index1,
+void SphereCollisionCostFunction::getCollisionCostAndGradient( int index1,
                                                          int index2)
 {
     if ( index1 > index2 ){ std::swap( index1, index2 ); }
@@ -207,7 +192,7 @@ void SphereCollisionHelper::getCollisionCostAndGradient( int index1,
 
 
 template <class Derived>
-double SphereCollisionHelper::projectGradient(size_t body_index, 
+double SphereCollisionCostFunction::projectGradient(size_t body_index, 
                                 Eigen::MatrixBase<Derived> const & g )
 {
 
@@ -253,7 +238,7 @@ double SphereCollisionHelper::projectGradient(size_t body_index,
 }
 
 //If the given sphere overlaps with the given sdf, return true.
-double SphereCollisionHelper::getSDFCollision(int sphere_index, 
+double SphereCollisionCostFunction::getSDFCollision(int sphere_index, 
                                               int sdf_index,
                                               Eigen::Vector3d & gradient)
 {
@@ -276,7 +261,7 @@ double SphereCollisionHelper::getSDFCollision(int sphere_index,
 }
 
 // If the sphere overlaps an SDF, return true.
-bool SphereCollisionHelper::getSDFCollisions(size_t body_index)
+bool SphereCollisionCostFunction::getSDFCollisions(size_t body_index)
 {
     
     const double radius = spheres[body_index].radius;
@@ -296,7 +281,7 @@ bool SphereCollisionHelper::getSDFCollisions(size_t body_index)
 
 
 //If the given sphere overlaps with the given sdf, return true.
-bool SphereCollisionHelper::getSDFCollision(size_t body_index, 
+bool SphereCollisionCostFunction::getSDFCollision(size_t body_index, 
                                             size_t sdf_index)
 {
     
@@ -306,7 +291,7 @@ bool SphereCollisionHelper::getSDFCollision(size_t body_index,
     return (dist - spheres[body_index].radius < 0 );
 }
 
-double SphereCollisionHelper::sphereOnSphereCollision(
+double SphereCollisionCostFunction::sphereOnSphereCollision(
                                 size_t index1, size_t index2,
                                 Eigen::Vector3d & gradient,
                                 bool ignore){
@@ -357,7 +342,7 @@ double SphereCollisionHelper::sphereOnSphereCollision(
 }
 
 
-bool SphereCollisionHelper::sphereOnSphereCollision( size_t index1,
+bool SphereCollisionCostFunction::sphereOnSphereCollision( size_t index1,
                                                      size_t index2,
                                                      bool ignore){
     const Sphere & sphere1 = spheres[index1];
@@ -389,7 +374,7 @@ bool SphereCollisionHelper::sphereOnSphereCollision( size_t index1,
 
 //return true if the given bodies (sphere on sphere or sphere on sdf),
 //  overlap.
-bool SphereCollisionHelper::checkCollision( size_t body1, size_t body2 )
+bool SphereCollisionCostFunction::checkCollision( size_t body1, size_t body2 )
 {
 
     if ( body1 > body2 ){ std::swap( body1, body2 ); }
@@ -412,14 +397,14 @@ bool SphereCollisionHelper::checkCollision( size_t body1, size_t body2 )
     return false;
 }
 
-bool SphereCollisionHelper::isCollided()
+bool SphereCollisionCostFunction::isCollided()
 {
     bool collision = pruner->checkPotentialCollisions( this );
 
     return collision;
 }
 
-void SphereCollisionHelper::setSpherePositions( const chomp::MatX & q,
+void SphereCollisionCostFunction::setSpherePositions( const chomp::MatX & q,
                                                 bool setInactive){
     if ( sphere_positions.size() != spheres.size()){
         sphere_positions.resize( spheres.size() );
@@ -431,7 +416,7 @@ void SphereCollisionHelper::setSpherePositions( const chomp::MatX & q,
     setSpherePositions( vec, setInactive );
 }
  
-void SphereCollisionHelper::setSpherePositions(
+void SphereCollisionCostFunction::setSpherePositions(
                             const std::vector<OpenRAVE::dReal> & state,
                             bool setInactive)
 {   
@@ -476,7 +461,7 @@ void SphereCollisionHelper::setSpherePositions(
 }
 
 std::vector< OpenRAVE::dReal > const &
-SphereCollisionHelper::getJacobian( size_t sphere_index )
+SphereCollisionCostFunction::getJacobian( size_t sphere_index )
 {
     
     map::iterator it = jacobians.find( sphere_index );
@@ -502,7 +487,7 @@ SphereCollisionHelper::getJacobian( size_t sphere_index )
     return inserted_element.first->second;
 }
 
-inline void SphereCollisionHelper::setJacobianVector(size_t sphere_index)
+inline void SphereCollisionCostFunction::setJacobianVector(size_t sphere_index)
 {
     //actually get the jacobian
     module->robot->CalculateActiveJacobian(
@@ -511,7 +496,7 @@ inline void SphereCollisionHelper::setJacobianVector(size_t sphere_index)
                    jacobian_vector);
 }
 
-OpenRAVE::KinBodyPtr SphereCollisionHelper::createCube( 
+OpenRAVE::KinBodyPtr SphereCollisionCostFunction::createCube( 
                                             double dist,
                                             double size,
                                             const OpenRAVE::Vector & pos,
@@ -526,7 +511,7 @@ OpenRAVE::KinBodyPtr SphereCollisionHelper::createCube(
 
 }
 
-void SphereCollisionHelper::colorFromDist( double dist,
+void SphereCollisionCostFunction::colorFromDist( double dist,
                                            size_t sdf_index,
                                            OpenRAVE::Vector & color ){
 
@@ -558,7 +543,7 @@ void SphereCollisionHelper::colorFromDist( double dist,
 }
 
 
-void SphereCollisionHelper::visualizeSDFSlice( size_t sdf_index,
+void SphereCollisionCostFunction::visualizeSDFSlice( size_t sdf_index,
                                                size_t axis,
                                                size_t slice_index,
                                                double time)
@@ -622,7 +607,7 @@ void SphereCollisionHelper::visualizeSDFSlice( size_t sdf_index,
 
 }
 
-void SphereCollisionHelper::benchmark( int num_trials,
+void SphereCollisionCostFunction::benchmark( int num_trials,
                                        bool check_all,
                                        double pause_time,
                                        bool print){
@@ -856,7 +841,7 @@ void SphereCollisionHelper::benchmark( int num_trials,
 }
 
 
-bool SphereCollisionHelper::isCollidedSDF( bool checkAll ){
+bool SphereCollisionCostFunction::isCollidedSDF( bool checkAll ){
     bool isInCollision = false; 
 
     for ( size_t i = 0; i < nbodies; i ++ ){
@@ -869,7 +854,7 @@ bool SphereCollisionHelper::isCollidedSDF( bool checkAll ){
     return isInCollision;
 }
 
-bool SphereCollisionHelper::isCollidedSelf( bool checkAll ){
+bool SphereCollisionCostFunction::isCollidedSelf( bool checkAll ){
 
         
     bool isInCollision = false; 
@@ -887,7 +872,7 @@ bool SphereCollisionHelper::isCollidedSelf( bool checkAll ){
     return isInCollision;
 }
 
-void SphereCollisionHelper::getSpheres(){
+void SphereCollisionCostFunction::getSpheres(){
     
     std::vector< Sphere > inactive_spheres;
     
@@ -1003,14 +988,14 @@ void SphereCollisionHelper::getSpheres(){
 
 }
 
-inline int SphereCollisionHelper::getKey( int linkindex1,
+inline int SphereCollisionCostFunction::getKey( int linkindex1,
                                           int linkindex2 ) const
 {
     if (linkindex1 > linkindex2){ std::swap( linkindex1, linkindex2 );}
     return ( linkindex2 << 16 ) | (linkindex1 & 0x0000FFFF);
 }
 
-inline bool SphereCollisionHelper::ignoreSphereCollision(
+inline bool SphereCollisionCostFunction::ignoreSphereCollision(
                                            const Sphere & sphere1,
                                            const Sphere & sphere2) const
 {
@@ -1042,13 +1027,13 @@ inline bool SphereCollisionHelper::ignoreSphereCollision(
     return false;
 }
 
-void SphereCollisionHelper::initPruner(){
+void SphereCollisionCostFunction::initPruner(){
     if ( !pruner ){
         pruner = new ArrayCollisionPruner( 0, spheres, module->sdfs );
     }  
 }
 
-inline bool SphereCollisionHelper::ignoreSphereCollision(
+inline bool SphereCollisionCostFunction::ignoreSphereCollision(
                                            size_t sphere_index1,
                                            size_t sphere_index2 ) const
 {

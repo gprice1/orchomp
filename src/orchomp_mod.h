@@ -34,10 +34,10 @@
 #include <openrave/openrave.h>
 #include <openrave/planningutils.h>
 
-//data structures
-
 //classes for chomping
-#include "chomp-multigrid/chomp/Chomp.h"
+#include "motionoptimizer/MotionOptimizer.h"
+
+
 #include "orchomp_distancefield.h"
 #include "orchomp_sphere.h" 
 
@@ -152,21 +152,17 @@ public:
     //____________________PUBLIC MEMBER VARIABLES____________________//
     OpenRAVE::EnvironmentBasePtr environment; /* filled on module creation */
     //the  start, and endpoints.
-    chomp::MatX  q0, q1;
+    mopt::MatX  q0, q1;
 
     //this is a pointer to the chomp class that will pull most of the
     //   weight for the module.
-    chomp::Chomp * chomper;
+    mopt::Chomp * chomper;
 
     //This holds information pertinent to the collision geometry, and
     //   assists chomp in computing collision gradients.
-    ORConstraintFactory * factory;
     SphereCollisionHelper * sphere_collider;
-    chomp::ChompObserver * observer;
+    mopt::ChompObserver * observer;
     
-    //an hmc object
-    chomp::HMC * hmc;
- 
     //This holds basic info relating to an individual 
     //   run of chomp
     ChompInfo info;
@@ -252,7 +248,7 @@ public:
     
     //view the collision geometry of the robot at a given robot
     //  configuration
-    bool viewspheresVec( const chomp::MatX & q,
+    bool viewspheresVec( const mopt::MatX & q,
                         const std::vector< OpenRAVE::dReal > & vec,
                         double time);
     
@@ -302,7 +298,7 @@ public:
                                    std::istream& sinput);
     void parseAddFieldFromObsArray(std::ostream & sout,
                                    std::istream& sinput);
-    void parsePoint( std::istream & sinput, chomp::MatX & point);
+    void parsePoint( std::istream & sinput, mopt::MatX & point);
     void parseExecute( std::ostream & sout , std::istream & sinput );
     void parseRobot( std::string & name );
     void parseError( std::istream& sinput );
@@ -315,30 +311,32 @@ public:
 public:
     // A small helper function for creating a straight
     //  line trajectory between two endpoints:
-    void createInitialTrajectory( chomp::MatX& trajectory);
+    void createInitialTrajectory( mopt::MatX& trajectory);
     //get the ith state in the trajectory matrix and turn it into an openrave
     //  state vector.
     void getIthStateAsVector( size_t i,
                 std::vector< OpenRAVE::dReal > & state  );
     //get a state matrix, and turn it into an openrave state vector
-    void getStateAsVector( const chomp::MatX & state,
+    void getStateAsVector( const mopt::MatX & state,
                 std::vector< OpenRAVE::dReal > & vec  );
     
     //get a random state that is within the robot's joint limits
-    void getRandomState( chomp::MatX & vec );
+    void getRandomState( mopt::MatX & vec );
 
-    //turn an OpenRAVE::Vector to a chomp::MatX.
+    //turn an OpenRAVE::Vector to a mopt::MatX.
     void vectorToMat(const std::vector< OpenRAVE::dReal > & vec,
-                             chomp::MatX & mat );
+                             mopt::MatX & mat );
 
     //take a state matrix, and if any of the values exceed the joint limits,
     //  then clamp that value to the nearest joint limit
-    void clampToLimits( chomp::MatX & state);
+    void clampToLimits( mopt::MatX & state);
+    
     //returns true if the given state matrix is within the joint limits
-    bool isWithinLimits( const chomp::MatX & mat ) const;
-    bool isWithinPaddedLimits( const chomp::MatX & mat ) const;
+    bool isWithinLimits( const mopt::MatX & mat ) const;
+    bool isWithinPaddedLimits( const mopt::MatX & mat ) const;
+
     //Take a state matrix, and set the robot's active DOF values
-    void setActiveDOFValues( const chomp::MatX & qt );
+    void setActiveDOFValues( const mopt::MatX & qt );
     //get the ik for the currently active end effector for the transform
     void getIK( const OpenRAVE::Transform & xform, 
                      std::vector< OpenRAVE::dReal > & solution );

@@ -28,8 +28,6 @@
 #include "orchomp_kdata.h"
 #include "orchomp_collision.h"
 
-#include "chomp-multigrid/chomp/HMC.h"
-
 namespace orchomp
 {
 
@@ -39,8 +37,8 @@ namespace orchomp
 mod::mod(OpenRAVE::EnvironmentBasePtr penv) :
     OpenRAVE::ModuleBase(penv), environment( penv ),
     chomper( NULL ),
-    factory( NULL ), sphere_collider( NULL ),
-    observer( NULL ), hmc( NULL )
+    sphere_collider( NULL ),
+    observer( NULL )
 {
     RAVELOG_INFO( "Constructing\n");
       __description = "orchomp: implementation multigrid chomp";
@@ -164,12 +162,12 @@ bool mod::playback(std::ostream& sout, std::istream& sinput)
         return false;
     }
 
-    for ( int i = 0; i < chomper->xi.rows(); i ++ ){
+    for ( int i = 0; i < chomper->getTrajectory().rows(); i ++ ){
 
         std::vector< OpenRAVE::dReal > vec;
-        getStateAsVector( chomper->xi.row(i), vec );
+        getStateAsVector( chomper->row(i), vec );
         
-        viewspheresVec( chomper->xi.row(i), vec, time );
+        viewspheresVec( chomper->row(i), vec, time );
 
     }
 
@@ -205,7 +203,7 @@ void getDualColor( OpenRAVE::Vector & color,
 }
 
 //view the collision geometry. .
-bool mod::viewspheresVec(const chomp::MatX & q,
+bool mod::viewspheresVec(const mopt::MatX & q,
                         const std::vector< OpenRAVE::dReal > & vec, 
                         double time)
 {
@@ -230,7 +228,7 @@ bool mod::viewspheresVec(const chomp::MatX & q,
     {
 
         double sdf_cost( 0 ), self_cost(0.0);
-        chomp::MatX dxdq, cgrad;
+        mopt::MatX dxdq, cgrad;
         Eigen::Vector3d gradient;
 
         sdf_cost = 0;
@@ -301,13 +299,13 @@ bool mod::visualizeWholeTrajectory( std::ostream& sout,
         return false;
     }
 
-    const chomp::MatX & xi = chomper->xi;
-    chomp::MatX traj( xi.rows()+2, xi.cols());
-    traj.row(0) = chomper->gradient->q0;
-    traj.row(traj.rows()-1) = chomper->gradient->q1;
-
-    traj.block(1, 0, xi.rows(), xi.cols()) = xi;
-
+    mopt::MatX traj( chomper->getTrajectory().N()+2, 
+                     chomper->getTrajectory().M());
+    traj.row(0) = chomper->getTrajectory().getQ0();
+    traj.row(traj.rows()-1) = chomper->getTrajectory().getQ1();
+    traj.block(1, 0, traj.rows()-2, traj.cols()) =
+               chomper->getTrajectory().getXi();
+    
     if ( !sphere_collider ) { 
         RAVELOG_ERROR( "There is no sphere collider, so viewing the" 
                        " spheres is impossible" );
@@ -351,7 +349,7 @@ bool mod::visualizeWholeTrajectory( std::ostream& sout,
             bodies.push_back( sbody );
             environment->Add( sbody );
             
-            double u = double(j)/double(xi.rows());
+            double u = double(j)/double(traj.rows());
             OpenRAVE::Vector color = start_color + diff * u;  
             
             sbody->GetLinks()[0]->GetGeometries()[0]
@@ -431,15 +429,8 @@ bool mod::removeconstraint(std::ostream& sout, std::istream& sinput){
         sinput >> index;
     }
 
-    //if a factory exists, remove the constraint
-    if ( factory ){
-        factory->removeConstraint( index );
-    }
-
-    else {
-        std::cout << "There is no factory, so removal cannot happen" <<
+    std::cout << "The removeconstraint function is not implemented" <<
                   std::endl;
-    }
 
     return true;
 }
@@ -464,7 +455,7 @@ bool mod::createtsr( std::ostream& sout, std::istream& sinput){
     }
     
     //add the constraint to the factory, and to the list of constraints.
-    factory->addConstraint( c, starttime, endtime );
+    chomper->addConstraint( c, starttime, endtime );
     tsrs.push_back( c );
 
     return true;
@@ -476,9 +467,9 @@ bool mod::addtsr(std::ostream& sout, std::istream& sinput){
     OpenRAVE::EnvironmentMutex::scoped_lock
                                     lockenv(environment->GetMutex());
 
-    chomp::Transform::quat pose_0_w_rot, pose_w_e_rot;
-    chomp::Transform::vec3 pose_0_w_trans, pose_w_e_trans;
-    chomp::MatX bounds(6,2);
+    mopt::Transform::quat pose_0_w_rot, pose_w_e_rot;
+    mopt::Transform::vec3 pose_0_w_trans, pose_w_e_trans;
+    mopt::MatX bounds(6,2);
     OpenRAVE::dReal starttime, endtime;
 
     while ( !sinput.eof() ){
@@ -540,8 +531,8 @@ bool mod::addtsr(std::ostream& sout, std::istream& sinput){
 
 
 
-    chomp::Transform pose_0_w(pose_0_w_rot, pose_0_w_trans);
-    chomp::Transform pose_w_e(pose_w_e_rot, pose_w_e_trans);
+    mopt::Transform pose_0_w(pose_0_w_rot, pose_0_w_trans);
+    mopt::Transform pose_w_e(pose_w_e_rot, pose_w_e_trans);
 
     if ( !active_manip.get() ){
         RAVELOG_ERROR( "There is no active manip, needed for addtsr()" );
@@ -557,7 +548,7 @@ bool mod::addtsr(std::ostream& sout, std::istream& sinput){
                                                bounds, pose_w_e,
                                                body_name, link_name);
     std::cout << "Done creating TSR " << c << std::endl;
-    factory->addConstraint( c, starttime, endtime );
+    chomper->addConstraint( c, starttime, endtime );
     
     tsrs.push_back( c );
     
@@ -588,8 +579,8 @@ bool mod::viewtsr(std::ostream & sout, std::istream& sinput){
     debugStream << "Making cube" << std::endl;
     OpenRAVE::KinBodyPtr cube = createBox( position, size, color, 0.5 );
     
-    chomp::Transform::quat rot = tsrs[index]->_pose_0_w.rotation();
-    chomp::Transform::vec3 pos = tsrs[index]->_pose_0_w.translation();
+    mopt::Transform::quat rot = tsrs[index]->_pose_0_w.rotation();
+    mopt::Transform::vec3 pos = tsrs[index]->_pose_0_w.translation();
 
     debugStream << "Setting OR positions" <<
                 "\trot: " << rot << "\tpos: " << pos << std::endl;
@@ -727,11 +718,6 @@ bool mod::create(std::ostream& sout, std::istream& sinput)
         assert( isWithinLimits( q0 ) );
         assert( isWithinLimits( q1 ) );
 
-
-        if ( !info.noFactory ){
-            if (factory ){ delete factory; }
-            factory = new ORConstraintFactory( this );
-        }
     }
 
     
@@ -775,7 +761,7 @@ bool mod::iterate(std::ostream& sout, std::istream& sinput)
     //get the arguments
     parseIterate( sout,  sinput);
 
-    chomp::MatX initialTrajectory;
+    mopt::MatX initialTrajectory;
     //after the arguments have been collected, pass them to chomp
     createInitialTrajectory( initialTrajectory );
 
@@ -783,7 +769,7 @@ bool mod::iterate(std::ostream& sout, std::istream& sinput)
     //now that we have a trajectory, make a chomp object
     // if there is an old chomp object, delete it.
     if (chomper){ delete chomper; } 
-    chomper = new chomp::Chomp( factory, initialTrajectory,
+    chomper = new mopt::MotionOptimizer( factory, initialTrajectory,
                                 q0, q1, info.n_max, 
                                 info.alpha, info.obstol,
                                 info.max_global_iter,
@@ -792,17 +778,6 @@ bool mod::iterate(std::ostream& sout, std::istream& sinput)
                                 info.use_momentum);
 
     chomper->setBounds( lowerJointLimits, upperJointLimits );
-    
-    if ( info.use_hmc ){
-        if (hmc){ delete hmc; }
-        hmc = new chomp::HMC( info.hmc_lambda, info.do_not_reject );
-        
-        if ( info.seed != 0 ){
-            hmc->setSeed( info.seed );
-        }
-
-        chomper->hmc = hmc;
-    }
     
     printChompInfo();
 
@@ -816,13 +791,13 @@ bool mod::iterate(std::ostream& sout, std::istream& sinput)
                               info.epsilon_self, 
                               info.obs_factor_self );
         
-        chomper->gradient->ghelper = sphere_collider;
+        chomper->setCollisionCostFunction( sphere_collider );
     }
     
     
     if ( info.doObserve ){
-        observer = new chomp::DebugChompObserver();
-        chomper->observer = observer;
+        observer = new mopt::DebugChompObserver();
+        chomper->setObserver( observer );
     }
 
     //setup the mins
@@ -839,7 +814,7 @@ bool mod::iterate(std::ostream& sout, std::istream& sinput)
     
     timer.start( "CHOMP run" );
     //solve chomp
-    chomper->solve( info.doGlobal, info.doLocal );
+    chomper->solve();
     
     double elapsedTime = timer.stop( "CHOMP run" );
     double wallTime = timer.getWallElapsed("CHOMP run");
@@ -864,13 +839,13 @@ void mod::checkTrajectoryForCollision(){
     double total_dist = 0.0;
 
     //get the length of the trajectory
-    for ( int i = 0; i < chomper->xi.rows()-1; i ++ ) 
+    for ( int i = 0; i < chomper->getTrajectory.rows()-1; i ++ ) 
     {
         
-        const chomp::MatX & point1 = chomper->xi.row( i );
-        const chomp::MatX & point2 = chomper->xi.row( i+1 );
+        const mopt::MatX & point1 = chomper->getTrajectory().row( i );
+        const mopt::MatX & point2 = chomper->getTrajectory().row( i+1 );
         
-        const chomp::MatX diff = point1 - point2;
+        const mopt::MatX diff = point1 - point2;
 
         const double val = (diff.array() * diff.array()).sum();
             
@@ -947,7 +922,7 @@ bool mod::gettraj(std::ostream& sout, std::istream& sinput)
     trajectory_ptr->Insert( 0, startState );
 
     //get the rest of the trajectory
-    for ( int i = 0; i < chomper->xi.rows(); i ++ ){
+    for ( int i = 0; i < chomper->getTrajectory().rows(); i ++ ){
         
         std::vector< OpenRAVE::dReal > state;
         getIthStateAsVector( i, state );
@@ -957,10 +932,10 @@ bool mod::gettraj(std::ostream& sout, std::istream& sinput)
     
     //get the start state as an openrave vector
     std::vector< OpenRAVE::dReal > endState;
-    getStateAsVector( chomper->gradient->q1, endState );
+    getStateAsVector( chomper->getTrajectory().getQ1(), endState );
 
     //insert the end state into the trajectory
-    trajectory_ptr->Insert( chomper->xi.rows(), endState );
+    trajectory_ptr->Insert( chomper->getTrajectory().rows(), endState );
 
 
     RAVELOG_INFO( "Retiming Trajectory\n" );
@@ -1008,17 +983,9 @@ void mod::delete_items(){
         delete sphere_collider;
         sphere_collider = NULL;
     }
-    if (factory){
-        delete factory;
-        factory = NULL;
-    }
     if (observer){
         delete observer;
         observer = NULL;
-    }
-    if (hmc){
-        delete hmc;
-        hmc = NULL;
     }
 }
 
@@ -1034,7 +1001,7 @@ bool mod::destroy(std::ostream& sout, std::istream& sinput){
 
 //takes the two endpoints and fills the trajectory matrix by
 //  linearly interpolating between the two.
-inline void mod::createInitialTrajectory( chomp::MatX & trajectory )
+inline void mod::createInitialTrajectory( mopt::MatX & trajectory )
 {
 
     //make sure that the number of points is not zero
@@ -1049,7 +1016,7 @@ inline void mod::createInitialTrajectory( chomp::MatX & trajectory )
     for (size_t i=0; i<info.n; ++i) {
         trajectory.row(i) = (i+1)*(q1-q0)/(info.n+1) + q0;
 
-        chomp::MatX test = trajectory.row(i);
+        mopt::MatX test = trajectory.row(i);
 
         //make sure that all of the points are within the joint limits
         //  this is unnecessary, but nice for now.

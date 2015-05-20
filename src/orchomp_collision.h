@@ -44,17 +44,12 @@ OpenRAVE::dReal computeCostFromDist( OpenRAVE::dReal dist,
 
 
 
-class SphereCollisionHelper : public chomp::ChompGradientHelper{
+class SphereCollisionCostFunction : public mopt::CollisionCostFunction{
     typedef std::pair< unsigned long int, std::vector<OpenRAVE::dReal> > 
                 key_value_pair;
     typedef boost::unordered_map< unsigned long int,
                                   std::vector< OpenRAVE::dReal > > map;
 public:
-    
-    //the dimensions of c-space, 
-    //the dimensions of workspace
-    //and the number of bodies.
-    size_t ncspace, nwkspace, nbodies;
     
     ArrayCollisionPruner * pruner;
 
@@ -64,21 +59,11 @@ public:
     
     bool inactive_spheres_have_been_set;
 
-    //the magnitude of the gradient update
-    double gamma;
     //the distance from the environment or the self at which cost starts.
     double epsilon, epsilon_self;
+    
     //the percent contribution of self and environmental collisions
     double obs_factor, obs_factor_self;
-
-    //all of this is from the chomp collision gradient helper.
-    chomp::MatX q0, q1, q2;
-    chomp::MatX cspace_vel, cspace_accel;
-    chomp::MatX wkspace_vel, wkspace_accel;
-    chomp::MatX P;
-    chomp::MatX K;
-    
-    double inv_dt;
 
     //the positions of the spheres for a given configuration.
     std::vector< OpenRAVE::Vector > sphere_positions;
@@ -101,31 +86,30 @@ public:
     //________________________Public Member Functions____________________//
     
     //the constuctor needs a pointer to the robot in addition to the spaces.
-    SphereCollisionHelper( size_t ncspace, mod * module,
-                           double gamma=0.1, 
-                           double epsilon=0.1, 
-                           double obs_factor=0.7,
-                           double epsilon_self=0.01,
-                           double obs_factor_self=0.3);
-    ~SphereCollisionHelper();
+    SphereCollisionCostFunction( mod * module,
+                                 double epsilon=0.1, 
+                                 double obs_factor=0.7,
+                                 double epsilon_self=0.01,
+                                 double obs_factor_self=0.3);
+    ~SphereCollisionCostFunction();
 
     //The main call for this class.
     //Find the workspace collision gradient for the 
     //  current trajectory.
-    virtual double addToGradient(const chomp::MatX& xi,
-                                 const chomp::MatX& pinit,
-                                 const chomp::MatX& pgoal,
+    virtual double addToGradient(const mopt::MatX& xi,
+                                 const mopt::MatX& pinit,
+                                 const mopt::MatX& pgoal,
                                  double dt,
-                                 chomp::MatX& g);
+                                 mopt::MatX& g);
 
     //The main call for this class.
     //Find the workspace collision gradient for the 
     //  current trajectory.
-    virtual double addToGradient(chomp::ConstMatMap& xi,
-                                 const chomp::MatX& pinit,
-                                 const chomp::MatX& pgoal,
+    virtual double addToGradient(mopt::ConstMatMap& xi,
+                                 const mopt::MatX& pinit,
+                                 const mopt::MatX& pgoal,
                                  double dt,
-                                 chomp::MatMap& g);
+                                 mopt::MatMap& g);
 
     //get the cost and gradient of a potential collision pair.
     //  store the costs and gradient in the sphere_costs vector.
@@ -164,7 +148,7 @@ public:
 
     //for a given configuration q, set the sphere_positions vector, to the
     //  positions of the spheres for the configuration.
-    virtual void setSpherePositions( const chomp::MatX & q,
+    virtual void setSpherePositions( const mopt::MatX & q,
                                      bool setInactive=false);
     virtual void setSpherePositions(
                             const std::vector<OpenRAVE::dReal> & state,

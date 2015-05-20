@@ -35,20 +35,20 @@ bool mod::isWithinLimits( const chomp::MatX & mat ) const{
 
 void mod::coutTrajectory() const
 {
-    for ( int i = 0; i < chomper->xi.rows(); i ++ ){
+    for ( int i = 0; i < chomper->getTrajectory().rows(); i ++ ){
 
 
-        for ( int j = 0; j < chomper->xi.cols() ; j ++ ){
+        for ( int j = 0; j < chomper->getTrajectory().cols() ; j ++ ){
 
-            std::cout << chomper->xi( i, j ) << "\t";
+            std::cout << chomper->getTrajectory()( i, j ) << "\t";
         }
         std::cout << "\n";
     }
 }
 
 void mod::isTrajectoryWithinLimits() const {
-    for( int i = 0; i < chomper->xi.rows(); i ++ ){
-        chomp::MatX test = chomper->xi.row(i);
+    for( int i = 0; i < chomper->getTrajectory().rows(); i ++ ){
+        chomp::MatX test = chomper->getTrajectory().row(i);
         assert( isWithinLimits( test ) );
         //debugStream << "Point " << i << " is within limits" << std::endl;
     }
@@ -104,13 +104,11 @@ void mod::getIthStateAsVector( size_t i,
                       std::vector< OpenRAVE::dReal > & state )
 {
     
-    const int width = chomper->xi.cols();
+    const int width = chomper->getTrajectory().cols();
     state.resize( width );
-
-    for ( int j = 0; j < width; j ++ ){
-        state[j] = chomper->xi(i, j );
-    }
-
+    
+    mopt::MatMap( state.data(), 1, width ) = 
+                chomper->getTrajectory().row(i);
 }
 
 void mod::setActiveDOFValues( const chomp::MatX & qt ){

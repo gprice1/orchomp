@@ -33,7 +33,7 @@
 #define CREATEPARSE 1
 namespace orchomp{
 
-inline void mod::getRandomState( chomp::MatX & state ){
+inline void mod::getRandomState( mopt::MatX & state ){
     assert( n_dof > 0 );
     if ( size_t( state.cols()) != n_dof ){
         state.resize( 1, n_dof );
@@ -56,9 +56,9 @@ void parseTransform(std::istream& sinput, OpenRAVE::Transform & xform){
     sinput >> xform.rot[2];
 }
 
-void parseMatToTransform( std::istream & sinput, chomp::Transform & xform ){
+void parseMatToTransform( std::istream & sinput, mopt::Transform & xform ){
 
-    chomp::Transform::mat4 mat;
+    mopt::Transform::mat4 mat;
 
     for ( int i = 0; i < 3; i ++ ){
         for ( int j = 0; j < 4; j ++ ){
@@ -76,8 +76,8 @@ void parseMatToTransform( std::istream & sinput, chomp::Transform & xform ){
 }
 ORTSRConstraint * mod::parseTSR( std::istream & sinput ){
 
-    chomp::Transform T0_w, Tw_e;
-    chomp::MatX bounds(6,2);
+    mopt::Transform T0_w, Tw_e;
+    mopt::MatX bounds(6,2);
 
     int manip_index;
     sinput >> manip_index;
@@ -139,7 +139,7 @@ void mod::parseRobot( std::string & robot_name ){
 }
 
 
-void mod::parsePoint( std::istream& sinput, chomp::MatX & point ){
+void mod::parsePoint( std::istream& sinput, mopt::MatX & point ){
     if ( active_indices.size() <= 0 ){
         RAVELOG_ERROR("n_dof must be set before states can be added" );
         throw OpenRAVE::openrave_exception("Bad arguments!");
