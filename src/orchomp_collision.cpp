@@ -18,7 +18,7 @@ void assertJacobianIsEquivalent(const Eigen::MatrixBase<Derived> & mat,
 
 
 //the constuctor needs a pointer to the robot in addition to the spaces.
-SphereCollisionCostFunction::SphereCollisionCostFunction( 
+SphereCollisionFunction::SphereCollisionFunction( 
                        size_t ncspace,
                        mod * module,
                        double gamma, 
@@ -41,17 +41,18 @@ SphereCollisionCostFunction::SphereCollisionCostFunction(
                        module->robot->GetAdjacentLinks().end() );
     getSpheres();
 
-    sphere_costs.resize( nbodies );
+    sphere_costs.resize( number_of_bodies );
 
     initPruner();
 
 }
 
-SphereCollisionCostFunction::~SphereCollisionCostFunction(){
+SphereCollisionFunction::~SphereCollisionFunction(){
     if ( pruner ){ delete pruner; }
 }
 
-OpenRAVE::dReal computeCostFromDist( OpenRAVE::dReal dist,
+OpenRAVE::dReal SphereCollisionFunction::computeCostFromDist( 
+                                     OpenRAVE::dReal dist,
                                      double epsilon,
                                      Eigen::Vector3d & gradient ){
 
@@ -78,76 +79,48 @@ OpenRAVE::dReal computeCostFromDist( OpenRAVE::dReal dist,
 
 }
 
-double SphereCollisionCostFunction::addToGradient(const chomp::MatX& xi,
-                                            const chomp::MatX& pinit,
-                                            const chomp::MatX& pgoal,
-                                            double dt,
-                                            chomp::MatX& g) {
+double SphereCollisionFunction::evaluateTimestep( 
+                                     int t,
+                                     const Trajectory & trajectory,
+                                     bool set_gradient)
+{
     
-    //timer.start( "collision" );
-
-    q1 = chomp::getTickBorderRepeat(-1, xi, pinit, pgoal, dt).transpose();
-    q2 = chomp::getTickBorderRepeat(0, xi, pinit, pgoal, dt).transpose();
-
-    inv_dt = 1/dt;
-    const double inv_dt_squared = inv_dt * inv_dt;
-    double total_cost = 0.0;
+    //Set the positions of all of the spheres,
+    //  for the current configuration.
+    setSpherePositions( q1, !inactive_spheres_have_been_set );
     
-    for ( int current_time=0; current_time < xi.rows(); ++current_time)
+    //set all of the sphere costs to zero
+    for ( std::vector<SphereCost>::iterator i = sphere_costs.begin();
+          i != sphere_costs.end();
+          i ++ )
     {
-       
-        //timer.start( "FK" );
-        //Set the positions of all of the spheres,
-        //  for the current configuration.
-        setSpherePositions( q1, !inactive_spheres_have_been_set );
-        //timer.stop( "FK" );
-        
-        //timer.start( "sdf collision");
-        //set all of the sphere costs to zero
-        for ( std::vector<SphereCost>::iterator i = sphere_costs.begin();
-              i != sphere_costs.end();
-              i ++ )
-        {
-            i->setZero();
-        }
-        
-        //get all of the potential collisions, and test those
-        //  for collision
-        CollisionReport potential;
-        pruner->getPotentialCollisions( potential );
-        
-        for ( CollisionReport::iterator i = potential.begin();
-              i != potential.end();
-              ++i )
-        {
-            getCollisionCostAndGradient(i->first, i->second );
-        }
+        i->setZero();
+    }
+    
+    //get all of the potential collisions, and test those
+    //  for collision
+    CollisionReport potential;
+    pruner->getPotentialCollisions( potential );
+    
+    for ( CollisionReport::iterator i = potential.begin();
+          i != potential.end();
+          ++i )
+    {
+        getCollisionCostAndGradient(i->first, i->second );
+    }
 
-        //timer.stop( "sdf collision");
-        
-        //timer.start( "projection" );
-        q0 = q1;
-        q1 = q2;
-        q2 = chomp::getTickBorderRepeat(current_time+1, xi,
-                                        pinit, pgoal, dt).transpose();
-
-        cspace_vel = 0.5 * (q2 - q0) * inv_dt;        
-        cspace_accel = (q0 - 2.0*q1 + q2) * inv_dt_squared;
-
-        for ( size_t i = 0; i < nbodies; i ++ ){
-            total_cost += projectGradient( i, g.row( current_time ));
-        }
-
-        //timer.stop( "projection" );
+    double cost = 0;
+    for ( size_t i = 0; i < number_of_bodies; i ++ ){
+        cost += projectGradient( i, set_gradient);
     }
 
     //timer.stop( "collision" );
-    return total_cost;
+    return cost;
 
 }
 
-void SphereCollisionCostFunction::getCollisionCostAndGradient( int index1,
-                                                         int index2)
+void SphereCollisionFunction::getCollisionCostAndGradient( int index1,
+                                                           int index2)
 {
     if ( index1 > index2 ){ std::swap( index1, index2 ); }
     
@@ -168,7 +141,7 @@ void SphereCollisionCostFunction::getCollisionCostAndGradient( int index1,
 
             //if the other sphere is active, store those costs,
             //  but store the negative gradient.
-            if ( index2 < int( nbodies ) ){
+            if ( index2 < int( number_of_bodies ) ){
                 sphere_costs[ index2 ].self_cost += cost;
                 sphere_costs[ index2 ].self_gradient -= gradient;
             }
@@ -190,10 +163,8 @@ void SphereCollisionCostFunction::getCollisionCostAndGradient( int index1,
     }
 }
 
-
-template <class Derived>
-double SphereCollisionCostFunction::projectGradient(size_t body_index, 
-                                Eigen::MatrixBase<Derived> const & g )
+double SphereCollisionFunction::projectGradient (size_t body_index, 
+                                                 bool set_gradient )
 {
 
     double cost = sphere_costs[body_index].getCost( obs_factor,
@@ -207,38 +178,16 @@ double SphereCollisionCostFunction::projectGradient(size_t body_index,
                            sphere_costs[body_index].self_gradient;
 
     setJacobianVector( body_index );
-    Eigen::Map<const chomp::MatXR> dx_dq( jacobian_vector.data(),
+    Eigen::Map<const mopt::MatXR> jacobian_map( jacobian_vector.data(),
                                          nwkspace,
                                          ncspace );
-
-    wkspace_vel = dx_dq * cspace_vel;
-    wkspace_accel = dx_dq * cspace_accel;
     
-    float wv_norm = wkspace_vel.norm();
-    //this prevents nans from propogating in the case that the norm
-    //  is zero
-    if ( wv_norm == 0 ){ return 0.0; }
+    return projectCost( cost, jacobian_map, grad, set_gradient );
 
-    wkspace_vel /= wv_norm;
-    
-    //change gamma depending on if it is self or sdf collision
-    double scl = wv_norm / inv_dt * gamma;
-
-    P = chomp::MatX::Identity(nwkspace, nwkspace)
-        - (wkspace_vel * wkspace_vel.transpose());
-
-    K = (P * wkspace_accel) / (wv_norm * wv_norm);
-   
-    //scalar * M-by-W        * (WxW * Wx1   - scalar * Wx1)
-    const_cast<Eigen::MatrixBase<Derived> &>(g)
-                  += (scl * (dx_dq.transpose() *
-                     (P * grad - cost * K) ).transpose());
-
-    return cost * scl;
 }
 
 //If the given sphere overlaps with the given sdf, return true.
-double SphereCollisionCostFunction::getSDFCollision(int sphere_index, 
+double SphereCollisionFunction::getSDFCollision(int sphere_index, 
                                               int sdf_index,
                                               Eigen::Vector3d & gradient)
 {
@@ -261,7 +210,7 @@ double SphereCollisionCostFunction::getSDFCollision(int sphere_index,
 }
 
 // If the sphere overlaps an SDF, return true.
-bool SphereCollisionCostFunction::getSDFCollisions(size_t body_index)
+bool SphereCollisionFunction::getSDFCollisions(size_t body_index)
 {
     
     const double radius = spheres[body_index].radius;
@@ -281,7 +230,7 @@ bool SphereCollisionCostFunction::getSDFCollisions(size_t body_index)
 
 
 //If the given sphere overlaps with the given sdf, return true.
-bool SphereCollisionCostFunction::getSDFCollision(size_t body_index, 
+bool SphereCollisionFunction::getSDFCollision(size_t body_index, 
                                             size_t sdf_index)
 {
     
@@ -291,7 +240,7 @@ bool SphereCollisionCostFunction::getSDFCollision(size_t body_index,
     return (dist - spheres[body_index].radius < 0 );
 }
 
-double SphereCollisionCostFunction::sphereOnSphereCollision(
+double SphereCollisionFunction::sphereOnSphereCollision(
                                 size_t index1, size_t index2,
                                 Eigen::Vector3d & gradient,
                                 bool ignore){
@@ -342,7 +291,7 @@ double SphereCollisionCostFunction::sphereOnSphereCollision(
 }
 
 
-bool SphereCollisionCostFunction::sphereOnSphereCollision( size_t index1,
+bool SphereCollisionFunction::sphereOnSphereCollision( size_t index1,
                                                      size_t index2,
                                                      bool ignore){
     const Sphere & sphere1 = spheres[index1];
@@ -374,13 +323,13 @@ bool SphereCollisionCostFunction::sphereOnSphereCollision( size_t index1,
 
 //return true if the given bodies (sphere on sphere or sphere on sdf),
 //  overlap.
-bool SphereCollisionCostFunction::checkCollision( size_t body1, size_t body2 )
+bool SphereCollisionFunction::checkCollision( size_t body1, size_t body2 )
 {
 
     if ( body1 > body2 ){ std::swap( body1, body2 ); }
 
     //the first element is not an active sphere, so continue
-    if ( body1 >= nbodies ){ return false; }
+    if ( body1 >= number_of_bodies ){ return false; }
       
     //If Body2 is an SDF
     if ( body2 >= spheres.size() )
@@ -397,26 +346,26 @@ bool SphereCollisionCostFunction::checkCollision( size_t body1, size_t body2 )
     return false;
 }
 
-bool SphereCollisionCostFunction::isCollided()
+bool SphereCollisionFunction::isCollided()
 {
     bool collision = pruner->checkPotentialCollisions( this );
 
     return collision;
 }
 
-void SphereCollisionCostFunction::setSpherePositions( const chomp::MatX & q,
+void SphereCollisionFunction::setSpherePositions( const mopt::MatX & q,
                                                 bool setInactive){
     if ( sphere_positions.size() != spheres.size()){
         sphere_positions.resize( spheres.size() );
     }
 
     std::vector< OpenRAVE::dReal > vec;
-    chomp::matToVec( q, vec );
+    mopt::matToVec( q, vec );
     
     setSpherePositions( vec, setInactive );
 }
  
-void SphereCollisionCostFunction::setSpherePositions(
+void SphereCollisionFunction::setSpherePositions(
                             const std::vector<OpenRAVE::dReal> & state,
                             bool setInactive)
 {   
@@ -429,7 +378,7 @@ void SphereCollisionCostFunction::setSpherePositions(
     
     //if setInactive is true, then set all of the spheres,
     //  otherwise, only set the active spheres.
-    const size_t size = ( setInactive ? spheres.size() : nbodies );
+    const size_t size = ( setInactive ? spheres.size() : number_of_bodies );
 
     //get the positions of all of the spheres
     for ( size_t i=0; i < size; i ++ )
@@ -461,7 +410,7 @@ void SphereCollisionCostFunction::setSpherePositions(
 }
 
 std::vector< OpenRAVE::dReal > const &
-SphereCollisionCostFunction::getJacobian( size_t sphere_index )
+SphereCollisionFunction::getJacobian( size_t sphere_index )
 {
     
     map::iterator it = jacobians.find( sphere_index );
@@ -487,7 +436,7 @@ SphereCollisionCostFunction::getJacobian( size_t sphere_index )
     return inserted_element.first->second;
 }
 
-inline void SphereCollisionCostFunction::setJacobianVector(size_t sphere_index)
+inline void SphereCollisionFunction::setJacobianVector(size_t sphere_index)
 {
     //actually get the jacobian
     module->robot->CalculateActiveJacobian(
@@ -496,7 +445,7 @@ inline void SphereCollisionCostFunction::setJacobianVector(size_t sphere_index)
                    jacobian_vector);
 }
 
-OpenRAVE::KinBodyPtr SphereCollisionCostFunction::createCube( 
+OpenRAVE::KinBodyPtr SphereCollisionFunction::createCube( 
                                             double dist,
                                             double size,
                                             const OpenRAVE::Vector & pos,
@@ -511,7 +460,7 @@ OpenRAVE::KinBodyPtr SphereCollisionCostFunction::createCube(
 
 }
 
-void SphereCollisionCostFunction::colorFromDist( double dist,
+void SphereCollisionFunction::colorFromDist( double dist,
                                            size_t sdf_index,
                                            OpenRAVE::Vector & color ){
 
@@ -543,7 +492,7 @@ void SphereCollisionCostFunction::colorFromDist( double dist,
 }
 
 
-void SphereCollisionCostFunction::visualizeSDFSlice( size_t sdf_index,
+void SphereCollisionFunction::visualizeSDFSlice( size_t sdf_index,
                                                size_t axis,
                                                size_t slice_index,
                                                double time)
@@ -607,7 +556,7 @@ void SphereCollisionCostFunction::visualizeSDFSlice( size_t sdf_index,
 
 }
 
-void SphereCollisionCostFunction::benchmark( int num_trials,
+void SphereCollisionFunction::benchmark( int num_trials,
                                        bool check_all,
                                        double pause_time,
                                        bool print){
@@ -629,7 +578,7 @@ void SphereCollisionCostFunction::benchmark( int num_trials,
 
         if ( print ) { std::cout << "\nGetting new Config\n";}
 
-        chomp::MatX mat;
+        mopt::MatX mat;
         std::vector< OpenRAVE::dReal > state_vector;
         module->getRandomState(mat);
         module->getStateAsVector( mat , state_vector );
@@ -841,10 +790,10 @@ void SphereCollisionCostFunction::benchmark( int num_trials,
 }
 
 
-bool SphereCollisionCostFunction::isCollidedSDF( bool checkAll ){
+bool SphereCollisionFunction::isCollidedSDF( bool checkAll ){
     bool isInCollision = false; 
 
-    for ( size_t i = 0; i < nbodies; i ++ ){
+    for ( size_t i = 0; i < number_of_bodies; i ++ ){
         if ( getSDFCollisions( i ) ){
             if ( !checkAll ) { return true; }
             isInCollision = true;
@@ -854,12 +803,12 @@ bool SphereCollisionCostFunction::isCollidedSDF( bool checkAll ){
     return isInCollision;
 }
 
-bool SphereCollisionCostFunction::isCollidedSelf( bool checkAll ){
+bool SphereCollisionFunction::isCollidedSelf( bool checkAll ){
 
         
     bool isInCollision = false; 
 
-    for ( size_t i = 0; i < nbodies; i ++ ){
+    for ( size_t i = 0; i < number_of_bodies; i ++ ){
         for ( size_t j = i+1; j < spheres.size(); j ++ ){
             
             if ( sphereOnSphereCollision( i, j ) ){
@@ -872,7 +821,7 @@ bool SphereCollisionCostFunction::isCollidedSelf( bool checkAll ){
     return isInCollision;
 }
 
-void SphereCollisionCostFunction::getSpheres(){
+void SphereCollisionFunction::getSpheres(){
     
     std::vector< Sphere > inactive_spheres;
     
@@ -890,8 +839,8 @@ void SphereCollisionCostFunction::getSpheres(){
 
         //get the spheres of the body by creating an xml reader to
         //  extract the spheres from the xml files of the objects
-        boost::shared_ptr<orchomp::kdata> data_reader = 
-            boost::dynamic_pointer_cast<orchomp::kdata>
+        boost::shared_ptr<ormopt::kdata> data_reader = 
+            boost::dynamic_pointer_cast<ormopt::kdata>
                 (body->GetReadableInterface("orchomp"));
          
         //bail if there is no orcdchomp data.
@@ -981,21 +930,21 @@ void SphereCollisionCostFunction::getSpheres(){
     }
     
     //set the number of bodies equivalent to the number of active spheres.
-    nbodies = spheres.size();
+    number_of_bodies = spheres.size();
     //insert the inactive spheres into the spheres vector.
     spheres.insert( spheres.end(), inactive_spheres.begin(),
                                    inactive_spheres.end() );
 
 }
 
-inline int SphereCollisionCostFunction::getKey( int linkindex1,
+inline int SphereCollisionFunction::getKey( int linkindex1,
                                           int linkindex2 ) const
 {
     if (linkindex1 > linkindex2){ std::swap( linkindex1, linkindex2 );}
     return ( linkindex2 << 16 ) | (linkindex1 & 0x0000FFFF);
 }
 
-inline bool SphereCollisionCostFunction::ignoreSphereCollision(
+inline bool SphereCollisionFunction::ignoreSphereCollision(
                                            const Sphere & sphere1,
                                            const Sphere & sphere2) const
 {
@@ -1027,13 +976,13 @@ inline bool SphereCollisionCostFunction::ignoreSphereCollision(
     return false;
 }
 
-void SphereCollisionCostFunction::initPruner(){
+void SphereCollisionFunction::initPruner(){
     if ( !pruner ){
         pruner = new ArrayCollisionPruner( 0, spheres, module->sdfs );
     }  
 }
 
-inline bool SphereCollisionCostFunction::ignoreSphereCollision(
+inline bool SphereCollisionFunction::ignoreSphereCollision(
                                            size_t sphere_index1,
                                            size_t sphere_index2 ) const
 {

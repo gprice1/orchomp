@@ -2,7 +2,7 @@
 #define _ORCHOMP_DISTANCEFIELD_H_
 
 
-#include "chomp-multigrid/mzcommon/DtGrid.h"
+#include "mzcommon/DtGrid.h"
 #include <openrave/openrave.h>
 #include <openrave/planningutils.h>
 #include "utils/timer.h"

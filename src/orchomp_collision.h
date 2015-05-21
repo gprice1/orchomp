@@ -38,19 +38,14 @@ class SphereCost{
     }
 };
 
-OpenRAVE::dReal computeCostFromDist( OpenRAVE::dReal dist,
-                                     double epsilon,
-                                     Eigen::Vector3d & gradient );
 
-
-
-class SphereCollisionCostFunction : public mopt::CollisionCostFunction{
+class SphereCollisionFunction : public mopt::CollisionFunction{
     typedef std::pair< unsigned long int, std::vector<OpenRAVE::dReal> > 
                 key_value_pair;
     typedef boost::unordered_map< unsigned long int,
                                   std::vector< OpenRAVE::dReal > > map;
 public:
-    
+    i
     ArrayCollisionPruner * pruner;
 
     // a pointer to the module for acces to stuff like the collision
@@ -86,40 +81,36 @@ public:
     //________________________Public Member Functions____________________//
     
     //the constuctor needs a pointer to the robot in addition to the spaces.
-    SphereCollisionCostFunction( mod * module,
-                                 double epsilon=0.1, 
-                                 double obs_factor=0.7,
-                                 double epsilon_self=0.01,
-                                 double obs_factor_self=0.3);
-    ~SphereCollisionCostFunction();
+    SphereCollisionFunction( size_t cspace_dofs,
+                             size_t workspace_dofs, 
+                             size_t n_bodies,
+                             double gamma
+                             mod * module,
+                             double epsilon=0.1, 
+                             double obs_factor=0.7,
+                             double epsilon_self=0.01,
+                             double obs_factor_self=0.3);
+    
+    virtual ~SphereCollisionFunction();
 
-    //The main call for this class.
-    //Find the workspace collision gradient for the 
-    //  current trajectory.
-    virtual double addToGradient(const mopt::MatX& xi,
-                                 const mopt::MatX& pinit,
-                                 const mopt::MatX& pgoal,
-                                 double dt,
-                                 mopt::MatX& g);
+    virtual double evaluateTimestep( int t,
+                                     const Trajectory & trajectory,
+                                     bool set_gradient = true );
+    //Multiply the workspace gradient through the jacobian, and add it into
+    //   the c-space gradient.
+    double projectGradient( size_t body_index, 
+                            bool set_gradient);
 
-    //The main call for this class.
-    //Find the workspace collision gradient for the 
-    //  current trajectory.
-    virtual double addToGradient(mopt::ConstMatMap& xi,
-                                 const mopt::MatX& pinit,
-                                 const mopt::MatX& pgoal,
-                                 double dt,
-                                 mopt::MatMap& g);
+    //this is unused because we do not need it.
+    virtual double getCost( const MatX& state,
+                            size_t current_index,
+                            MatX& dx_dq, 
+                            MatX& collision_gradient ){};
 
     //get the cost and gradient of a potential collision pair.
     //  store the costs and gradient in the sphere_costs vector.
     void getCollisionCostAndGradient( int index1, int index2 );
     
-    //Multiply the workspace gradient through the jacobian, and add it into
-    //   the c-space gradient.
-    template <class Derived>
-    double projectGradient( size_t body_index, 
-                            Eigen::MatrixBase<Derived> const & g);
     
     //get collisions with the environment from a list of signed distance
     //  fields.
@@ -155,6 +146,10 @@ public:
                             bool setInactive=false);
 
     bool checkCollision( size_t body1, size_t body2 );
+
+    static OpenRAVE::dReal computeCostFromDist( OpenRAVE::dReal dist,
+                                                double epsilon,
+                                              Eigen::Vector3d & gradient );
 
   public:
   //Public methods for visualization and testing purposes:
