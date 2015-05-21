@@ -82,10 +82,8 @@ public:
     
     //the constuctor needs a pointer to the robot in addition to the spaces.
     SphereCollisionFunction( size_t cspace_dofs,
-                             size_t workspace_dofs, 
-                             size_t n_bodies,
-                             double gamma
                              mod * module,
+                             double gamma=0.1
                              double epsilon=0.1, 
                              double obs_factor=0.7,
                              double epsilon_self=0.01,

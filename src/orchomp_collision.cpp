@@ -19,18 +19,17 @@ void assertJacobianIsEquivalent(const Eigen::MatrixBase<Derived> & mat,
 
 //the constuctor needs a pointer to the robot in addition to the spaces.
 SphereCollisionFunction::SphereCollisionFunction( 
-                       size_t ncspace,
+                       size_t configuration_space_DOF,
                        mod * module,
                        double gamma, 
                        double epsilon, 
                        double obs_factor,
                        double epsilon_self,
                        double obs_factor_self) :
-        ncspace(ncspace), nwkspace(3),
+        CollisionFunction( configuration_space_DOF, 3, 0, gamma )
         pruner( NULL ),
         module(module),
         inactive_spheres_have_been_set( false ),
-        gamma( gamma),
         epsilon( epsilon ),
         epsilon_self( epsilon_self ),
         obs_factor( obs_factor ),
@@ -40,7 +39,7 @@ SphereCollisionFunction::SphereCollisionFunction(
     ignorables.insert( module->robot->GetAdjacentLinks().begin(),
                        module->robot->GetAdjacentLinks().end() );
     getSpheres();
-
+    
     sphere_costs.resize( number_of_bodies );
 
     initPruner();
@@ -179,8 +178,8 @@ double SphereCollisionFunction::projectGradient (size_t body_index,
 
     setJacobianVector( body_index );
     Eigen::Map<const mopt::MatXR> jacobian_map( jacobian_vector.data(),
-                                         nwkspace,
-                                         ncspace );
+                                         workspace_DOF,
+                                         configuration_space_DOF );
     
     return projectCost( cost, jacobian_map, grad, set_gradient );
 
@@ -855,7 +854,6 @@ void SphereCollisionFunction::getSpheres(){
         //only get ignorables if the robot is the body
         if ( body.get() == module->robot.get() ){
 
-
             for (size_t j = 0; j < data_reader->ignorables.size(); j ++ ){
                 int index1 = module->robot->GetLink(
                              data_reader->ignorables[j].first
@@ -865,7 +863,7 @@ void SphereCollisionFunction::getSpheres(){
                              )->GetIndex();
 
                 ignorables.insert( getKey( index1, index2 ));
-                }
+            }
         }
         
 
@@ -931,6 +929,7 @@ void SphereCollisionFunction::getSpheres(){
     
     //set the number of bodies equivalent to the number of active spheres.
     number_of_bodies = spheres.size();
+    
     //insert the inactive spheres into the spheres vector.
     spheres.insert( spheres.end(), inactive_spheres.begin(),
                                    inactive_spheres.end() );

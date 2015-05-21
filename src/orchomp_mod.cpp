@@ -100,7 +100,7 @@ mod::mod(OpenRAVE::EnvironmentBasePtr penv) :
 bool mod::benchmark(std::ostream& sout, std::istream& sinput)
 {
     if ( !sphere_collider ){
-        sphere_collider = new SphereCollisionHelper( n_dof, this );
+        sphere_collider = new SphereCollisionFunction( n_dof, this );
     }
     
     bool lock_env = true;
@@ -378,7 +378,7 @@ bool mod::viewspheres(std::ostream& sout, std::istream& sinput)
     
     //if there are no spheres, get them
     if ( sphere_collider == NULL ) {
-        sphere_collider = new SphereCollisionHelper(n_dof, this); 
+        sphere_collider = new SphereCollisionFunction(n_dof, this); 
     }
      
     char text_buf[1024];
@@ -783,7 +783,7 @@ bool mod::iterate(std::ostream& sout, std::istream& sinput)
 
     //create the sphere collider and pass in to the chomper.
     if ( !info.noCollider && !sphere_collider ){
-        sphere_collider = new SphereCollisionHelper(
+        sphere_collider = new SphereCollisionFunction(
                               n_dof, this, 
                               info.gamma,
                               info.epsilon,
@@ -791,7 +791,7 @@ bool mod::iterate(std::ostream& sout, std::istream& sinput)
                               info.epsilon_self, 
                               info.obs_factor_self );
         
-        chomper->setCollisionCostFunction( sphere_collider );
+        chomper->setCollisionFunction( sphere_collider );
     }
     
     
