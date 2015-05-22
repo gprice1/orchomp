@@ -1,0 +1,17 @@
+<package>
+  <name>orchomp</name>
+  <description>
+     orchomp is a wrapper around Matt Zucker's implementation of multigrid chomp.
+ </description>
+  <maintainer email="gprice1@swarthmore.edu">Temple Price </maintainer>
+  <build_depend>eigen</build_depend>
+  <buildtool_depend>catkin</buildtool_depend>
+  <license>GNU</license>
+  <export>
+    <python path="${prefix}/pythonsrc"/>
+    <openrave plugins="${prefix}/lib"/>
+  </export>
+  <version>0.0.0</version>
+</package>
+
+
