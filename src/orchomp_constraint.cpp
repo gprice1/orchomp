@@ -6,9 +6,9 @@ namespace orchomp
 {
 
 ORTSRConstraint::ORTSRConstraint(mod * module, int manip_index,
-                                 chomp::Transform & pose_0_w, 
-                                 chomp::MatX & Bw,
-                                 chomp::Transform & pose_w_e,
+                                 mopt::Transform & pose_0_w, 
+                                 mopt::MatX & Bw,
+                                 mopt::Transform & pose_w_e,
                                  std::string body_name,
                                  std::string link_name) :
      TSRConstraint( pose_0_w, Bw, pose_w_e ),
@@ -68,8 +68,8 @@ ORTSRConstraint::ORTSRConstraint(mod * module, int manip_index,
 // the relevant end-effector in the world frame. This is equivalent
 //  to the transformation from the end-effector frame to the world
 //  frame.
-void ORTSRConstraint::forwardKinematics( const chomp::MatX& qt,
-                                         chomp::Transform & pos )
+void ORTSRConstraint::forwardKinematics( const mopt::MatX& qt,
+                                         mopt::Transform & pos )
 {
 
     module->setActiveDOFValues( qt);
@@ -77,7 +77,7 @@ void ORTSRConstraint::forwardKinematics( const chomp::MatX& qt,
                                   ->GetTransform();
 
     pos.setTranslation( vec3( t.trans.x, t.trans.y, t.trans.z ) );
-    pos.setRotation( chomp::Transform::quat(
+    pos.setRotation( mopt::Transform::quat(
                      t.rot.x, t.rot.y, t.rot.z, t.rot.w ) );
     
 
@@ -85,9 +85,9 @@ void ORTSRConstraint::forwardKinematics( const chomp::MatX& qt,
 
 //this takes in a state and it gets the jacobian 
 void ORTSRConstraint::computeJacobian( 
-                              const chomp::MatX& qt,
-                              const chomp::Transform & pose_world_ee,
-                              chomp::MatX & jacobian,
+                              const mopt::MatX& qt,
+                              const mopt::Transform & pose_world_ee,
+                              mopt::MatX & jacobian,
                               std::vector< int > & active_dims)
 {
 

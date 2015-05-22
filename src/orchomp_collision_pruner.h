@@ -9,7 +9,7 @@
 
 namespace orchomp{
 
-class SphereCollisionHelper;
+class SphereCollisionFunction;
 
 typedef std::vector<std::pair<int,int> > CollisionReport;
 /*
@@ -82,7 +82,7 @@ class CollisionPruner{
                      const std::vector< DistanceField> & sdfs); 
     void getPotentialCollisions( std::vector<
                                  std::pair<size_t,size_t> > & coll_pairs );
-    bool checkPotentialCollisions( SphereCollisionHelper * checker );
+    bool checkPotentialCollisions( SphereCollisionFunction * checker );
 
   private:
 
@@ -178,7 +178,7 @@ class ArrayCollisionPruner{
                           const std::vector< DistanceField> & sdfs);
     virtual void sort( const std::vector< OpenRAVE::Vector > & positions, 
                        size_t n_set_positions);
-    bool checkPotentialCollisions( SphereCollisionHelper * checker );
+    bool checkPotentialCollisions( SphereCollisionFunction * checker );
     void getPotentialCollisions( CollisionReport & collisions);
 
   private:

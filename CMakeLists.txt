@@ -16,8 +16,8 @@ find_package(OpenRAVE REQUIRED)
 include_directories(${OpenRAVE_INCLUDE_DIRS})
 link_directories(${OpenRAVE_LIBRARY_DIRS})
 
-add_subdirectory( MOTION_OPTIMIZER_DIRECTORY )
-include_directories( MOTION_OPTIMIZER_DIRECTORY )
+add_subdirectory( ${MOTION_OPTIMIZER_DIRECTORY} chomp)
+include_directories( ${MOTION_OPTIMIZER_DIRECTORY} )
 
 #the libraries necessary for orchomp.
 set( ORCHOMPLIBS   
@@ -38,7 +38,7 @@ set( ORCHOMPLIBS
     )
 
 #This is all of the ros stuff.
-set( ROS TRUE )
+set( ROS FALSE)
 if (ROS )
     include($ENV{ROS_ROOT}/core/rosbuild/rosbuild.cmake)
     rosbuild_init()
@@ -54,7 +54,7 @@ endif( ROS )
 set_target_properties(orchomp PROPERTIES COMPILE_FLAGS
                       "${OpenRAVE_CXX_FLAGS}" LINK_FLAGS 
                       "${OpenRAVE_LINK_FLAGS}")
-target_link_libraries(orchomp chomp mzcommon ${OpenRAVE_LIBRARIES})
+target_link_libraries(orchomp motionoptimizer mzcommon ${OpenRAVE_LIBRARIES})
 
 
 ADD_CUSTOM_TARGET(debug

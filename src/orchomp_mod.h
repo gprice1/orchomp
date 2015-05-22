@@ -58,14 +58,8 @@ namespace orchomp
     //This holds information pertinent to the collision geometry, and
     //   assists chomp in computing collision gradients.
 
-class SphereCollisionHelper;
-class ORConstraintFactory;
-class mod;
+class SphereCollisionFunction;
 class ORTSRConstraint;
-class ORHelper;
-
-
-
 
 //this is a structure used to hold and initialize values
 //  for an eventual call to chomp.
@@ -156,12 +150,12 @@ public:
 
     //this is a pointer to the chomp class that will pull most of the
     //   weight for the module.
-    mopt::Chomp * chomper;
+    mopt::MotionOptimizer * chomper;
 
     //This holds information pertinent to the collision geometry, and
     //   assists chomp in computing collision gradients.
-    SphereCollisionHelper * sphere_collider;
-    mopt::ChompObserver * observer;
+    SphereCollisionFunction * sphere_collider;
+    mopt::Observer * observer;
     
     //This holds basic info relating to an individual 
     //   run of chomp

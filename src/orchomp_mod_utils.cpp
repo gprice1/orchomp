@@ -5,7 +5,7 @@
 namespace orchomp
 {
 
-bool mod::isWithinPaddedLimits( const chomp::MatX & mat ) const{
+bool mod::isWithinPaddedLimits( const mopt::MatX & mat ) const{
     assert( upperJointLimits.size() > 0 );
     assert( lowerJointLimits.size() > 0 );
     assert( mat.cols() > 0 );
@@ -19,7 +19,7 @@ bool mod::isWithinPaddedLimits( const chomp::MatX & mat ) const{
     return true;
 }
 
-bool mod::isWithinLimits( const chomp::MatX & mat ) const{
+bool mod::isWithinLimits( const mopt::MatX & mat ) const{
     assert( upperJointLimits.size() > 0 );
     assert( lowerJointLimits.size() > 0 );
     assert( mat.cols() > 0 );
@@ -48,7 +48,7 @@ void mod::coutTrajectory() const
 
 void mod::isTrajectoryWithinLimits() const {
     for( int i = 0; i < chomper->getTrajectory().rows(); i ++ ){
-        chomp::MatX test = chomper->getTrajectory().row(i);
+        mopt::MatX test = chomper->getTrajectory().row(i);
         assert( isWithinLimits( test ) );
         //debugStream << "Point " << i << " is within limits" << std::endl;
     }
@@ -66,7 +66,7 @@ void mod::getIK( const OpenRAVE::Transform & xform,
 
 }
 
-void mod::clampToLimits( chomp::MatX & state ){
+void mod::clampToLimits( mopt::MatX & state ){
     for ( int i = 0; i < state.cols() ; i ++ ){
         if ( state(i) > paddedUpperJointLimits[i] ){
             state(i) = paddedUpperJointLimits[i];
@@ -79,7 +79,7 @@ void mod::clampToLimits( chomp::MatX & state ){
 
 
 void mod::vectorToMat(const std::vector< OpenRAVE::dReal > & vec,
-                             chomp::MatX & mat )
+                             mopt::MatX & mat )
 {
     assert( vec.size() > 0 );
     mat.resize(1, vec.size() );
@@ -88,7 +88,7 @@ void mod::vectorToMat(const std::vector< OpenRAVE::dReal > & vec,
 }
 
 
-void mod::getStateAsVector( const chomp::MatX & state,
+void mod::getStateAsVector( const mopt::MatX & state,
                                    std::vector< OpenRAVE::dReal > & vec ){
 
     vec.resize( n_dof );
@@ -111,7 +111,7 @@ void mod::getIthStateAsVector( size_t i,
                 chomper->getTrajectory().row(i);
 }
 
-void mod::setActiveDOFValues( const chomp::MatX & qt ){
+void mod::setActiveDOFValues( const mopt::MatX & qt ){
 
     std::vector< OpenRAVE::dReal > vec;
     getStateAsVector( qt, vec );

@@ -9,7 +9,7 @@ namespace orchomp
 
 class mod;
 
-class ORTSRConstraint : public chomp::TSRConstraint {
+class ORTSRConstraint : public mopt::TSRConstraint {
   public:
     mod * module;
     int ee_link_index;
@@ -19,9 +19,9 @@ class ORTSRConstraint : public chomp::TSRConstraint {
     const std::string link_name;
 
     ORTSRConstraint( mod * module, int manip_index,
-                     chomp::Transform & pose_0_w, 
-                     chomp::MatX & Bw,
-                     chomp::Transform & pose_w_e,
+                     mopt::Transform & pose_0_w, 
+                     mopt::MatX & Bw,
+                     mopt::Transform & pose_w_e,
                      std::string body_name="NULL",
                      std::string link_name="NULL"); 
 
@@ -29,13 +29,13 @@ class ORTSRConstraint : public chomp::TSRConstraint {
     // the relevant end-effector in the world frame. This is equivalent
     //  to the transformation from the end-effector frame to the world
     //  frame.
-    virtual void forwardKinematics( const chomp::MatX& qt,
-                                    chomp::Transform & pos );
+    virtual void forwardKinematics( const mopt::MatX& qt,
+                                    mopt::Transform & pos );
     
     //this takes in a state and it gets the jacobian 
-    virtual void computeJacobian( const chomp::MatX& qt,
-                                  const chomp::Transform & pose_world_ee,
-                                  chomp::MatX & jacobian,
+    virtual void computeJacobian( const mopt::MatX& qt,
+                                  const mopt::Transform & pose_world_ee,
+                                  mopt::MatX & jacobian,
                                   std::vector< int > & active_dims);
 };
 

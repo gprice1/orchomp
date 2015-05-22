@@ -165,9 +165,9 @@ bool mod::playback(std::ostream& sout, std::istream& sinput)
     for ( int i = 0; i < chomper->getTrajectory().rows(); i ++ ){
 
         std::vector< OpenRAVE::dReal > vec;
-        getStateAsVector( chomper->row(i), vec );
+        getStateAsVector( chomper->getTrajectory().row(i), vec );
         
-        viewspheresVec( chomper->row(i), vec, time );
+        viewspheresVec( chomper->getTrajectory().row(i), vec, time );
 
     }
 
@@ -224,7 +224,7 @@ bool mod::viewspheresVec(const mopt::MatX & q,
     std::vector< OpenRAVE::KinBodyPtr > bodies;
     
 
-    for ( size_t i=0; i < sphere_collider->nbodies; i ++ )
+    for ( size_t i=0; i < sphere_collider->getNumberOfBodies(); i ++ )
     {
 
         double sdf_cost( 0 ), self_cost(0.0);
@@ -769,16 +769,18 @@ bool mod::iterate(std::ostream& sout, std::istream& sinput)
     //now that we have a trajectory, make a chomp object
     // if there is an old chomp object, delete it.
     if (chomper){ delete chomper; } 
-    chomper = new mopt::MotionOptimizer( factory, initialTrajectory,
-                                q0, q1, info.n_max, 
-                                info.alpha, info.obstol,
-                                info.max_global_iter,
-                                info.max_local_iter,
-                                info.t_total, info.timeout_seconds,
-                                info.use_momentum);
+    chomper = new mopt::MotionOptimizer( NULL, 
+                                         info.obstol, 
+				                         info.timeout_seconds,
+					                     info.max_global_iter);
 
     chomper->setBounds( lowerJointLimits, upperJointLimits );
-    
+    chomper->setAlpha( info.alpha );
+    chomper->getTrajectory().initialize(q0, q1, info.n );
+    chomper->setNMax( info.n_max );
+    chomper->setMomentum( info.use_momentum );
+    if ( info.use_hmc ){ chomper->setHMC( info.hmc_lambda ); }
+    chomper->setBounds( lowerJointLimits, upperJointLimits );
     printChompInfo();
 
     //create the sphere collider and pass in to the chomper.
@@ -796,13 +798,9 @@ bool mod::iterate(std::ostream& sout, std::istream& sinput)
     
     
     if ( info.doObserve ){
-        observer = new mopt::DebugChompObserver();
+        observer = new mopt::DebugObserver();
         chomper->setObserver( observer );
     }
-
-    //setup the mins
-    chomper->min_global_iter = info.min_global_iter;
-    chomper->min_local_iter = info.min_local_iter;
 
     //get the lock for the environment
     OpenRAVE::EnvironmentMutex::scoped_lock lock(environment->GetMutex() );
@@ -839,7 +837,7 @@ void mod::checkTrajectoryForCollision(){
     double total_dist = 0.0;
 
     //get the length of the trajectory
-    for ( int i = 0; i < chomper->getTrajectory.rows()-1; i ++ ) 
+    for ( int i = 0; i < chomper->getTrajectory().rows()-1; i ++ ) 
     {
         
         const mopt::MatX & point1 = chomper->getTrajectory().row( i );

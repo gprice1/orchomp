@@ -4,7 +4,7 @@
 
 #include "orchomp_kdata.h"
 #include "orchomp_distancefield.h"
-#include "chomp-multigrid/chomp/ChompGradient.h"
+#include "motionoptimizer/MotionOptimizer.h"
 
 #include <openrave/openrave.h>
 #include <boost/unordered_map.hpp>
@@ -45,7 +45,6 @@ class SphereCollisionFunction : public mopt::CollisionFunction{
     typedef boost::unordered_map< unsigned long int,
                                   std::vector< OpenRAVE::dReal > > map;
 public:
-    i
     ArrayCollisionPruner * pruner;
 
     // a pointer to the module for acces to stuff like the collision
@@ -83,7 +82,7 @@ public:
     //the constuctor needs a pointer to the robot in addition to the spaces.
     SphereCollisionFunction( size_t cspace_dofs,
                              mod * module,
-                             double gamma=0.1
+                             double gamma=0.1,
                              double epsilon=0.1, 
                              double obs_factor=0.7,
                              double epsilon_self=0.01,
@@ -92,18 +91,12 @@ public:
     virtual ~SphereCollisionFunction();
 
     virtual double evaluateTimestep( int t,
-                                     const Trajectory & trajectory,
+                                     const mopt::Trajectory & trajectory,
                                      bool set_gradient = true );
     //Multiply the workspace gradient through the jacobian, and add it into
     //   the c-space gradient.
     double projectGradient( size_t body_index, 
                             bool set_gradient);
-
-    //this is unused because we do not need it.
-    virtual double getCost( const MatX& state,
-                            size_t current_index,
-                            MatX& dx_dq, 
-                            MatX& collision_gradient ){};
 
     //get the cost and gradient of a potential collision pair.
     //  store the costs and gradient in the sphere_costs vector.

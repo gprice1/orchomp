@@ -236,7 +236,7 @@ namespace orchomp{
     }
 
     bool CollisionPruner::checkPotentialCollisions( 
-                           SphereCollisionHelper * checker )
+                           SphereCollisionFunction * checker )
     {
         
         Node * current_node = head;
@@ -406,7 +406,7 @@ namespace orchomp{
 
 
     bool ArrayCollisionPruner::checkPotentialCollisions( 
-                               SphereCollisionHelper * checker )
+                               SphereCollisionFunction * checker )
     {
         
         Interval active_head, inactive_head;

@@ -19,14 +19,14 @@ void assertJacobianIsEquivalent(const Eigen::MatrixBase<Derived> & mat,
 
 //the constuctor needs a pointer to the robot in addition to the spaces.
 SphereCollisionFunction::SphereCollisionFunction( 
-                       size_t configuration_space_DOF,
+                       size_t n_dof,
                        mod * module,
                        double gamma, 
                        double epsilon, 
                        double obs_factor,
                        double epsilon_self,
                        double obs_factor_self) :
-        CollisionFunction( configuration_space_DOF, 3, 0, gamma )
+        CollisionFunction( n_dof, 3, 0, gamma ),
         pruner( NULL ),
         module(module),
         inactive_spheres_have_been_set( false ),
@@ -40,7 +40,7 @@ SphereCollisionFunction::SphereCollisionFunction(
                        module->robot->GetAdjacentLinks().end() );
     getSpheres();
     
-    sphere_costs.resize( number_of_bodies );
+    sphere_costs.resize( getNumberOfBodies() );
 
     initPruner();
 
@@ -80,7 +80,7 @@ OpenRAVE::dReal SphereCollisionFunction::computeCostFromDist(
 
 double SphereCollisionFunction::evaluateTimestep( 
                                      int t,
-                                     const Trajectory & trajectory,
+                                     const mopt::Trajectory & trajectory,
                                      bool set_gradient)
 {
     
@@ -109,7 +109,7 @@ double SphereCollisionFunction::evaluateTimestep(
     }
 
     double cost = 0;
-    for ( size_t i = 0; i < number_of_bodies; i ++ ){
+    for ( size_t i = 0; i < getNumberOfBodies(); i ++ ){
         cost += projectGradient( i, set_gradient);
     }
 
@@ -140,7 +140,7 @@ void SphereCollisionFunction::getCollisionCostAndGradient( int index1,
 
             //if the other sphere is active, store those costs,
             //  but store the negative gradient.
-            if ( index2 < int( number_of_bodies ) ){
+            if ( index2 < int( getNumberOfBodies() ) ){
                 sphere_costs[ index2 ].self_cost += cost;
                 sphere_costs[ index2 ].self_gradient -= gradient;
             }
@@ -178,8 +178,8 @@ double SphereCollisionFunction::projectGradient (size_t body_index,
 
     setJacobianVector( body_index );
     Eigen::Map<const mopt::MatXR> jacobian_map( jacobian_vector.data(),
-                                         workspace_DOF,
-                                         configuration_space_DOF );
+                                         getWorkspaceDOF(),
+                                         getConfigurationSpaceDOF() );
     
     return projectCost( cost, jacobian_map, grad, set_gradient );
 
@@ -328,7 +328,7 @@ bool SphereCollisionFunction::checkCollision( size_t body1, size_t body2 )
     if ( body1 > body2 ){ std::swap( body1, body2 ); }
 
     //the first element is not an active sphere, so continue
-    if ( body1 >= number_of_bodies ){ return false; }
+    if ( body1 >= getNumberOfBodies() ){ return false; }
       
     //If Body2 is an SDF
     if ( body2 >= spheres.size() )
@@ -353,14 +353,16 @@ bool SphereCollisionFunction::isCollided()
 }
 
 void SphereCollisionFunction::setSpherePositions( const mopt::MatX & q,
-                                                bool setInactive){
+                                                  bool setInactive){
     if ( sphere_positions.size() != spheres.size()){
         sphere_positions.resize( spheres.size() );
     }
 
     std::vector< OpenRAVE::dReal > vec;
-    mopt::matToVec( q, vec );
-    
+
+    vec.resize( q.size() );
+    mopt::MatMap( vec.data(), q.rows(), q.cols() ) = q;
+
     setSpherePositions( vec, setInactive );
 }
  
@@ -377,7 +379,7 @@ void SphereCollisionFunction::setSpherePositions(
     
     //if setInactive is true, then set all of the spheres,
     //  otherwise, only set the active spheres.
-    const size_t size = ( setInactive ? spheres.size() : number_of_bodies );
+    const size_t size = ( setInactive ? spheres.size() : getNumberOfBodies() );
 
     //get the positions of all of the spheres
     for ( size_t i=0; i < size; i ++ )
@@ -792,7 +794,7 @@ void SphereCollisionFunction::benchmark( int num_trials,
 bool SphereCollisionFunction::isCollidedSDF( bool checkAll ){
     bool isInCollision = false; 
 
-    for ( size_t i = 0; i < number_of_bodies; i ++ ){
+    for ( size_t i = 0; i < getNumberOfBodies(); i ++ ){
         if ( getSDFCollisions( i ) ){
             if ( !checkAll ) { return true; }
             isInCollision = true;
@@ -807,7 +809,7 @@ bool SphereCollisionFunction::isCollidedSelf( bool checkAll ){
         
     bool isInCollision = false; 
 
-    for ( size_t i = 0; i < number_of_bodies; i ++ ){
+    for ( size_t i = 0; i < getNumberOfBodies(); i ++ ){
         for ( size_t j = i+1; j < spheres.size(); j ++ ){
             
             if ( sphereOnSphereCollision( i, j ) ){
@@ -838,8 +840,8 @@ void SphereCollisionFunction::getSpheres(){
 
         //get the spheres of the body by creating an xml reader to
         //  extract the spheres from the xml files of the objects
-        boost::shared_ptr<ormopt::kdata> data_reader = 
-            boost::dynamic_pointer_cast<ormopt::kdata>
+        boost::shared_ptr<orchomp::kdata> data_reader = 
+            boost::dynamic_pointer_cast<orchomp::kdata>
                 (body->GetReadableInterface("orchomp"));
          
         //bail if there is no orcdchomp data.
@@ -928,7 +930,7 @@ void SphereCollisionFunction::getSpheres(){
     }
     
     //set the number of bodies equivalent to the number of active spheres.
-    number_of_bodies = spheres.size();
+    setNumberOfBodies( spheres.size() );
     
     //insert the inactive spheres into the spheres vector.
     spheres.insert( spheres.end(), inactive_spheres.begin(),
