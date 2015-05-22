@@ -67,12 +67,13 @@ void mod::getIK( const OpenRAVE::Transform & xform,
 }
 
 void mod::clampToLimits( mopt::MatX & state ){
+    
     for ( int i = 0; i < state.cols() ; i ++ ){
         if ( state(i) > paddedUpperJointLimits[i] ){
-            state(i) = paddedUpperJointLimits[i];
+            state(i) = upperJointLimits[i];
         }
         else if ( state(i) < paddedLowerJointLimits[i] ){
-            state(i) = paddedLowerJointLimits[i];
+            state(i) = lowerJointLimits[i];
         }
     }
 }

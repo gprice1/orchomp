@@ -33,18 +33,15 @@
 #define CREATEPARSE 1
 namespace orchomp{
 
-inline void mod::getRandomState( mopt::MatX & state ){
+void mod::getRandomState( mopt::MatX & state ){
     assert( n_dof > 0 );
-    if ( size_t( state.cols()) != n_dof ){
-        state.resize( 1, n_dof );
-    }
-
-    for ( size_t i = 0; i < n_dof; i ++ ){
-         const double rand_val = double( rand() ) / double(RAND_MAX);
-         state(i) = lowerJointLimits[i] 
-                    + (upperJointLimits[i]-lowerJointLimits[i])
-                    * rand_val;
-    }
+    
+    mopt::MatMap lower( lowerJointLimits.data(), 1, n_dof );
+    mopt::MatMap upper( upperJointLimits.data(), 1, n_dof );
+     
+    state.setRandom(1, n_dof);
+    state = (state + mopt::MatX::Ones( 1, n_dof))/2;
+    state = state.cwiseProduct(upper-lower) + lower;
 }
          
 void parseTransform(std::istream& sinput, OpenRAVE::Transform & xform){
@@ -290,6 +287,16 @@ void mod::parseCreate(std::ostream & sout, std::istream& sinput)
         else if (cmd == "do_reject"){
             info.do_not_reject = false;
         }
+        else if (cmd == "algorithm" || cmd == "algorithm1"){
+            sinput >> info.algorithm1;
+        }
+        else if (cmd == "algorithm2"){
+            sinput >> info.algorithm2;
+        }
+        else if (cmd == "docovariant" || cmd == "doCovariant"){
+            info.do_covariant = true;
+        }
+
         //error case
         else{ parseError( sinput ); }
     }
@@ -371,7 +378,6 @@ void mod::parseIterate(std::ostream & sout, std::istream& sinput)
     if ( info.n > info.n_max ){
         info.n_max = info.n;
     }
-
 }
 
 void mod::parseGetTraj(std::ostream & sout, std::istream& sinput)

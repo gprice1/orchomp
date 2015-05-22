@@ -27,8 +27,8 @@ endif ()
 include_directories(${EIGEN3_INCLUDE_DIRS})
 
 
-set(CMAKE_C_FLAGS "-Wall -g")
-set(CMAKE_CXX_FLAGS "-Wall -g")
+set(CMAKE_C_FLAGS "-Wall -g -fPIC")
+set(CMAKE_CXX_FLAGS "-Wall -g -fPIC")
 
 if(APPLE)
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wsign-compare -Wno-deprecated")

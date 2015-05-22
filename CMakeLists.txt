@@ -1,5 +1,11 @@
 cmake_minimum_required(VERSION 2.6)
-project( ormopt )
+project( orchomp )
+
+set( ROS TRUE )
+if ( ROS )
+    find_package( catkin REQUIRED )
+    catkin_package()
+endif( ROS )
 
 set( MOTION_OPTIMIZER_DIRECTORY ../chomp )
 
@@ -37,24 +43,13 @@ set( ORCHOMPLIBS
     src/utils/util_shparse.c
     )
 
-#This is all of the ros stuff.
-set( ROS FALSE)
-if (ROS )
-    include($ENV{ROS_ROOT}/core/rosbuild/rosbuild.cmake)
-    rosbuild_init()
-    set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
-    set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
-    rosbuild_add_library( orchomp ${ORCHOMPLIBS} )
-
-else( ROS )
-    add_library(orchomp SHARED ${ORCHOMPLIBS})
-
-endif( ROS )
+#This is all of the ros stuff
+add_library(orchomp SHARED ${ORCHOMPLIBS})
 
 set_target_properties(orchomp PROPERTIES COMPILE_FLAGS
                       "${OpenRAVE_CXX_FLAGS}" LINK_FLAGS 
                       "${OpenRAVE_LINK_FLAGS}")
-target_link_libraries(orchomp motionoptimizer mzcommon ${OpenRAVE_LIBRARIES})
+target_link_libraries(orchomp motionoptimizer mzcommon nlopt ${OpenRAVE_LIBRARIES})
 
 
 ADD_CUSTOM_TARGET(debug

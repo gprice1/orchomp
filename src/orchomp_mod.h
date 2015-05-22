@@ -65,6 +65,8 @@ class ORTSRConstraint;
 //  for an eventual call to chomp.
 class ChompInfo {
 public:
+    std::string algorithm1, algorithm2; 
+
     // alpha : the gradient step
     // obstol: Relative error of the objective function - 
     //          once the error gets to a low enough point,
@@ -117,10 +119,11 @@ public:
     bool doGlobal, doLocal, doObserve, noFactory, noCollider, 
          noSelfCollision, noEnvironmentalCollision, 
          no_collision_check, no_collision_exception, no_collision_details,
-         use_hmc, use_momentum, do_not_reject;
+         use_hmc, use_momentum, do_not_reject, do_covariant;
 
     //a basic constructor to initialize values
     ChompInfo() :
+        algorithm1("CHOMP"), algorithm2("LOCAL_CHOMP"),
         alpha(0.1), obstol(0.00000000000001), t_total(1.0), gamma(0.1),
         epsilon( 0.1 ), epsilon_self( 0.01 ), obs_factor( 0.7 ),
         obs_factor_self( 0.3 ), jointPadding( 0.001 ),
@@ -133,7 +136,8 @@ public:
         noCollider( false ), noSelfCollision( false ),
         noEnvironmentalCollision( false ), no_collision_check(false), 
         no_collision_exception(false), no_collision_details(false),
-        use_hmc(false), use_momentum( false ), do_not_reject( true )
+        use_hmc(false), use_momentum( false ), do_not_reject( true ),
+        do_covariant(false)
         {}
 };
 
@@ -146,7 +150,7 @@ public:
     //____________________PUBLIC MEMBER VARIABLES____________________//
     OpenRAVE::EnvironmentBasePtr environment; /* filled on module creation */
     //the  start, and endpoints.
-    mopt::MatX  q0, q1;
+    mopt::MatX q0, q1;
 
     //this is a pointer to the chomp class that will pull most of the
     //   weight for the module.

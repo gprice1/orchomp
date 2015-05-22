@@ -40,7 +40,7 @@ mod::mod(OpenRAVE::EnvironmentBasePtr penv) :
     sphere_collider( NULL ),
     observer( NULL )
 {
-    RAVELOG_INFO( "Constructing\n");
+    RAVELOG_INFO( "Constructing the module\n");
       __description = "orchomp: implementation multigrid chomp";
       RegisterCommand("viewspheres",
               boost::bind(&mod::viewspheres,this,_1,_2),
@@ -270,7 +270,7 @@ bool mod::viewspheresVec(const mopt::MatX & q,
                              self_cost, sphere_collider->epsilon_self );
         sbody->GetLinks()[0]->GetGeometries()[0]->SetAmbientColor( color );
         sbody->GetLinks()[0]->GetGeometries()[0]->SetDiffuseColor( color );
-        sbody->GetLinks()[0]->GetGeometries()[0]->SetTransparency( 0.5 );
+        sbody->GetLinks()[0]->GetGeometries()[0]->SetTransparency( 0.2 );
 
 
     }
@@ -413,7 +413,9 @@ bool mod::viewspheres(std::ostream& sout, std::istream& sinput)
 
         sbody->InitFromSpheres(svec, true);
 
+        sbody->GetLinks()[0]->GetGeometries()[0]->SetTransparency(0.2);
         environment->Add( sbody );
+
 
     }
     
@@ -725,8 +727,8 @@ bool mod::create(std::ostream& sout, std::istream& sinput)
 }
 
 
-void mod::printChompInfo(){
 
+void mod::printChompInfo(){
 
     RAVELOG_INFO( "Chomp.n = %d\n", info.n );
     RAVELOG_INFO( "Chomp.n_max = %d\n", info.n_max );
@@ -738,20 +740,11 @@ void mod::printChompInfo(){
     RAVELOG_INFO( "Chomp.max_local_iter = %d\n", info.max_local_iter );
     RAVELOG_INFO( "Chomp.t_total = %f\n", info.t_total );
     RAVELOG_INFO( "Chomp.max_time = %f\n", info.timeout_seconds );
-
-    std::stringstream ss;
-    std::string configuration;
-
-    ss << q0;
-    configuration = ss.str();
-    RAVELOG_INFO( "Chomp q0 = %s\n", configuration.c_str() );
-
-    //clear the string stream.
-    ss.str( std::string() ) ;
-    ss << q1;
-    configuration = ss.str();
-
-    RAVELOG_INFO( "Chomp.q1 = %s\n", configuration.c_str() );
+    
+    std::cout << q0 << std::endl;
+    std::cout << q1 << std::endl;
+    
+    std::cout << "Done printing chomp Info" << std::endl;
 }
 
 bool mod::iterate(std::ostream& sout, std::istream& sinput)
@@ -760,31 +753,38 @@ bool mod::iterate(std::ostream& sout, std::istream& sinput)
 
     //get the arguments
     parseIterate( sout,  sinput);
-
-    mopt::MatX initialTrajectory;
-    //after the arguments have been collected, pass them to chomp
-    createInitialTrajectory( initialTrajectory );
-
+    printChompInfo();
 
     //now that we have a trajectory, make a chomp object
     // if there is an old chomp object, delete it.
     if (chomper){ delete chomper; } 
+    std::cout << q0 << std::endl;
     chomper = new mopt::MotionOptimizer( NULL, 
                                          info.obstol, 
 				                         info.timeout_seconds,
 					                     info.max_global_iter);
 
+    chomper->getTrajectory().initialize(q0, q1, info.n );
+
+    std::cout << "very early middle" << std::endl;
     chomper->setBounds( lowerJointLimits, upperJointLimits );
     chomper->setAlpha( info.alpha );
-    chomper->getTrajectory().initialize(q0, q1, info.n );
+    std::cout << "earlymiddle" << std::endl;
     chomper->setNMax( info.n_max );
     chomper->setMomentum( info.use_momentum );
+
+    std::cout << "middle" << std::endl;
+    chomper->setAlgorithm( info.algorithm1, info.algorithm2 );
+    chomper->setCovariantOptimization( info.do_covariant );
     if ( info.use_hmc ){ chomper->setHMC( info.hmc_lambda ); }
     chomper->setBounds( lowerJointLimits, upperJointLimits );
-    printChompInfo();
+    
+    std::cout << "Done initializing chomper" << std::endl;
+
 
     //create the sphere collider and pass in to the chomper.
     if ( !info.noCollider && !sphere_collider ){
+        std::cout << "creating collider" << std::endl;
         sphere_collider = new SphereCollisionFunction(
                               n_dof, this, 
                               info.gamma,
@@ -797,11 +797,15 @@ bool mod::iterate(std::ostream& sout, std::istream& sinput)
     }
     
     
+    std::cout << "Done creating collider" << std::endl;
+    
     if ( info.doObserve ){
         observer = new mopt::DebugObserver();
         chomper->setObserver( observer );
     }
 
+    std::cout << "DONE creating" <<std::endl; 
+    
     //get the lock for the environment
     OpenRAVE::EnvironmentMutex::scoped_lock lock(environment->GetMutex() );
 

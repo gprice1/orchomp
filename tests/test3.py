@@ -109,19 +109,12 @@ def main():
 
     v.SetCamera( Tz )
 
-    e.Load( "herb2_padded_nosensors.robot.xml" )
+    e.Load( "pr2_table.env.xml" )
 
-    robot = e.GetRobot( "Herb2" )
-    with e:
-        robot.SetName( "original" )
-    e.Load( "herb2_padded_nosensors.robot.xml" )
-
-    robot2 = e.GetRobot( "Herb2" )
-
+    robot = e.GetRobot( "pr2" )
 
     with e:
-        robot.SetDOFValues( start )
-        robot2.SetDOFValues( start )
+        #robot.SetDOFValues( start )
         
         """
         for link in robot.GetLinks():
