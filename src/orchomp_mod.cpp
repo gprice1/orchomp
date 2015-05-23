@@ -36,9 +36,7 @@ namespace orchomp
 //   command line interface.
 mod::mod(OpenRAVE::EnvironmentBasePtr penv) :
     OpenRAVE::ModuleBase(penv), environment( penv ),
-    chomper( NULL ),
     sphere_collider( NULL ),
-    observer( NULL )
 {
     RAVELOG_INFO( "Constructing the module\n");
       __description = "orchomp: implementation multigrid chomp";
@@ -157,17 +155,17 @@ bool mod::playback(std::ostream& sout, std::istream& sinput)
         time = 0.07;
     }
     
-    if ( !chomper ){
+    if ( trajectory.size() <= 0  ){
         RAVELOG_ERROR( "Iterate must be called before a playback" );
         return false;
     }
 
-    for ( int i = 0; i < chomper->getTrajectory().rows(); i ++ ){
+    for ( int i = 0; i < trajectory.rows(); i ++ ){
 
         std::vector< OpenRAVE::dReal > vec;
-        getStateAsVector( chomper->getTrajectory().row(i), vec );
+        getStateAsVector( trajectory.row(i), vec );
         
-        viewspheresVec( chomper->getTrajectory().row(i), vec, time );
+        viewspheresVec( trajectory.row(i), vec, time );
 
     }
 
@@ -284,7 +282,6 @@ bool mod::viewspheresVec(const mopt::MatX & q,
     return true;
 }
 
-
 //view the collision geometry. .
 bool mod::visualizeWholeTrajectory( std::ostream& sout,
                                     std::istream& sinput)
@@ -294,17 +291,11 @@ bool mod::visualizeWholeTrajectory( std::ostream& sout,
         sinput >> time;
     }
     
-    if ( !chomper ){
+    if ( trajectory.size() > 0 ){
         RAVELOG_ERROR( "Iterate must be called before a playback" );
         return false;
     }
 
-    mopt::MatX traj( chomper->getTrajectory().N()+2, 
-                     chomper->getTrajectory().M());
-    traj.row(0) = chomper->getTrajectory().getQ0();
-    traj.row(traj.rows()-1) = chomper->getTrajectory().getQ1();
-    traj.block(1, 0, traj.rows()-2, traj.cols()) =
-               chomper->getTrajectory().getXi();
     
     if ( !sphere_collider ) { 
         RAVELOG_ERROR( "There is no sphere collider, so viewing the" 
@@ -318,13 +309,14 @@ bool mod::visualizeWholeTrajectory( std::ostream& sout,
 
     char text_buf[1024];
     std::vector< OpenRAVE::KinBodyPtr > bodies;
-    for ( int j =0; j < traj.rows(); j ++ )
+
+    for ( int j =0; j < trajectory.rows(); j ++ )
     {
 
-        sphere_collider->setSpherePositions( traj.row(j) );
+        sphere_collider->setSpherePositions( trajectory.row(j) );
         
         int i = 8;
-
+        {
             //extract the current sphere
             const Sphere & current_sphere = sphere_collider->spheres[i] ;
 
@@ -349,14 +341,15 @@ bool mod::visualizeWholeTrajectory( std::ostream& sout,
             bodies.push_back( sbody );
             environment->Add( sbody );
             
-            double u = double(j)/double(traj.rows());
+            double u = double(j)/double(trajectory.rows());
             OpenRAVE::Vector color = start_color + diff * u;  
             
             sbody->GetLinks()[0]->GetGeometries()[0]
                                             ->SetAmbientColor( color );
             sbody->GetLinks()[0]->GetGeometries()[0]
                                             ->SetDiffuseColor( color );
-            //sbody->GetLinks()[0]->GetGeometries()[0]->SetTransparency(0.2);
+            //sbody->GetLinks()[0]->GetGeometries()[0]->SetTransparency(0.2)
+        }
     }
     
     timer.wait( time );
@@ -457,8 +450,12 @@ bool mod::createtsr( std::ostream& sout, std::istream& sinput){
     }
     
     //add the constraint to the factory, and to the list of constraints.
-    chomper->addConstraint( c, starttime, endtime );
-    tsrs.push_back( c );
+    ConstraintInterval i;
+    i.first = c;
+    i.second.first = startime;
+    i.second.second = endtime;
+    
+    tsrs.push_back( i );
 
     return true;
 }
@@ -550,10 +547,14 @@ bool mod::addtsr(std::ostream& sout, std::istream& sinput){
                                                bounds, pose_w_e,
                                                body_name, link_name);
     std::cout << "Done creating TSR " << c << std::endl;
-    chomper->addConstraint( c, starttime, endtime );
     
-    tsrs.push_back( c );
+    ConstraintInterval i;
+    i.first = c;
+    i.second.first = startime;
+    i.second.second = endtime;
     
+    tsrs.push_back( i ); 
+
     std::cout << "Done with tsr parsing" << std::endl;
     return true;
 }
@@ -757,28 +758,24 @@ bool mod::iterate(std::ostream& sout, std::istream& sinput)
 
     //now that we have a trajectory, make a chomp object
     // if there is an old chomp object, delete it.
-    if (chomper){ delete chomper; } 
     std::cout << q0 << std::endl;
-    chomper = new mopt::MotionOptimizer( NULL, 
-                                         info.obstol, 
-				                         info.timeout_seconds,
-					                     info.max_global_iter);
 
-    std::cout << q0 << std::endl;
-    chomper->getTrajectory().initialize(q0, q1, info.n );
+    mopt::MotionOptimizer chomper( NULL,
+                                   info.obstol, 
+                                   info.timeout_seconds,
+                                   info.max_global_iter);
 
-    std::cout << "very early middle" << std::endl;
-    chomper->setBounds( lowerJointLimits, upperJointLimits );
-    chomper->setAlpha( info.alpha );
-    std::cout << "earlymiddle" << std::endl;
-    chomper->setNMax( info.n_max );
-    chomper->setMomentum( info.use_momentum );
+    chomper.getTrajectory().initialize(q0, q1, info.n );
 
-    std::cout << "middle" << std::endl;
-    chomper->setAlgorithm( info.algorithm1, info.algorithm2 );
-    chomper->setCovariantOptimization( info.do_covariant );
-    if ( info.use_hmc ){ chomper->setHMC( info.hmc_lambda ); }
-    chomper->setBounds( lowerJointLimits, upperJointLimits );
+    chomper.setBounds( lowerJointLimits, upperJointLimits );
+    chomper.setAlpha( info.alpha );
+    chomper.setNMax( info.n_max );
+    chomper.setMomentum( info.use_momentum );
+
+    chomper.setAlgorithm( info.algorithm1, info.algorithm2 );
+    chomper.setCovariantOptimization( info.do_covariant );
+    if ( info.use_hmc ){ chomper.setHMC( info.hmc_lambda ); }
+    chomper.setBounds( lowerJointLimits, upperJointLimits );
     
     std::cout << "Done initializing chomper" << std::endl;
 
@@ -794,16 +791,14 @@ bool mod::iterate(std::ostream& sout, std::istream& sinput)
                               info.epsilon_self, 
                               info.obs_factor_self );
         
-        chomper->setCollisionFunction( sphere_collider );
+        chomper.setCollisionFunction( sphere_collider );
     }
     
     
     std::cout << "Done creating collider" << std::endl;
     
-    if ( info.doObserve ){
-        observer = new mopt::DebugObserver();
-        chomper->setObserver( observer );
-    }
+    mopt::DebugObserver observer;
+    if ( info.doObserve ){ chomper.setObserver( observer );}
 
     std::cout << "DONE creating" <<std::endl; 
     
@@ -817,14 +812,23 @@ bool mod::iterate(std::ostream& sout, std::istream& sinput)
     
     timer.start( "CHOMP run" );
     //solve chomp
-    chomper->solve();
+    chomper.solve();
     
+
     double elapsedTime = timer.stop( "CHOMP run" );
     double wallTime = timer.getWallElapsed("CHOMP run");
 
     RAVELOG_INFO( "Chomp process time %fs\n", elapsedTime );
     RAVELOG_INFO( "Chomp wall time    %fs\n", wallTime );
    
+    //store the computed trajectory
+    trajectory.resize( chomper.getTrajectory().N()+2, 
+                       chomper.getTrajectory().M());
+    trajectory.row(0) = chomper.getTrajectory().getQ0();
+    trajectory.row(traj.rows()-1) = chomper.getTrajectory().getQ1();
+    trajectory.block(1, 0, traj.rows()-2, traj.cols()) =
+                     chomper.getTrajectory().getXi();
+
     RAVELOG_INFO( "Done Iterating" ); 
     return true;
 }
@@ -842,13 +846,11 @@ void mod::checkTrajectoryForCollision(){
     double total_dist = 0.0;
 
     //get the length of the trajectory
-    for ( int i = 0; i < chomper->getTrajectory().rows()-1; i ++ ) 
+    for ( int i = 0; i < trajectory.rows()-1; i ++ ) 
     {
         
-        const mopt::MatX & point1 = chomper->getTrajectory().row( i );
-        const mopt::MatX & point2 = chomper->getTrajectory().row( i+1 );
-        
-        const mopt::MatX diff = point1 - point2;
+        const mopt::MatX diff = trajectory.row( i ) - 
+                                trajectory.row( i+1 );
 
         const double val = (diff.array() * diff.array()).sum();
             
@@ -896,7 +898,7 @@ bool mod::gettraj(std::ostream& sout, std::istream& sinput)
 
     parseGetTraj( sout,  sinput);
     
-    if ( !chomper ){
+    if ( trajectory.size() <= 0 ){
         RAVELOG_ERROR( "There is no trajectory to get. There must be a"
                        " call to iterate\n" );
     }
@@ -915,31 +917,19 @@ bool mod::gettraj(std::ostream& sout, std::istream& sinput)
     trajectory_ptr->Init(
         robot->GetActiveConfigurationSpecification());
 
-    
-
-    //get the start state as an openrave vector
-    std::vector< OpenRAVE::dReal > startState;
-    getStateAsVector( q0, startState );
-
-    //insert the start state into the trajectory
-    trajectory_ptr->Insert( 0, startState );
 
     //get the rest of the trajectory
-    for ( int i = 0; i < chomper->getTrajectory().rows(); i ++ ){
+    for ( int i = 0; i < trajectory.rows(); i ++ ){
         
         std::vector< OpenRAVE::dReal > state;
-        getIthStateAsVector( i, state );
+        state.resize( trajectory.cols() );
+        mopt::MatMap( state.data(), 1, trajectory.cols() ) =
+            trajectory.row( i );
+
         trajectory_ptr->Insert( i + 1, state );
         
     }
     
-    //get the start state as an openrave vector
-    std::vector< OpenRAVE::dReal > endState;
-    getStateAsVector( chomper->getTrajectory().getQ1(), endState );
-
-    //insert the end state into the trajectory
-    trajectory_ptr->Insert( chomper->getTrajectory().rows(), endState );
-
 
     RAVELOG_INFO( "Retiming Trajectory\n" );
     //this times the trajectory so that it can be
@@ -956,9 +946,11 @@ bool mod::gettraj(std::ostream& sout, std::istream& sinput)
     return true;
 }
 
-bool mod::execute(std::ostream& sout, std::istream& sinput){
+bool mod::execute(std::ostream& sout, std::istream& sinput)
+{
 
-    std::cout << "Executing" << std::endl;
+    RAVELOG_INFO( "Executing \n" );
+
     //get the lock for the environment
     OpenRAVE::EnvironmentMutex::scoped_lock lockenv(
               environment->GetMutex() );
@@ -978,18 +970,10 @@ bool mod::execute(std::ostream& sout, std::istream& sinput){
 }
 
 void mod::delete_items(){
-    if (chomper){
-        delete chomper;
-        chomper = NULL;
+    for ( int i = 0; i < tsrs.size(); i ++ ){
+        delete tsrs.first
     }
-    if (sphere_collider){ 
-        delete sphere_collider;
-        sphere_collider = NULL;
-    }
-    if (observer){
-        delete observer;
-        observer = NULL;
-    }
+
 }
 
 bool mod::destroy(std::ostream& sout, std::istream& sinput){
@@ -999,35 +983,6 @@ bool mod::destroy(std::ostream& sout, std::istream& sinput){
 
     return true;
 }
-
-
-
-//takes the two endpoints and fills the trajectory matrix by
-//  linearly interpolating between the two.
-inline void mod::createInitialTrajectory( mopt::MatX & trajectory )
-{
-
-    //make sure that the number of points is not zero
-    assert( info.n != 0 );
-    //make sure that the start and endpoint are the same size
-    assert( q0.size() == q1.size() );
-
-    //resize the trajectory to hold the current endpoint
-    trajectory.resize(info.n, q0.size() );
-
-    //fill the trajectory matrix 
-    for (size_t i=0; i<info.n; ++i) {
-        trajectory.row(i) = (i+1)*(q1-q0)/(info.n+1) + q0;
-
-        mopt::MatX test = trajectory.row(i);
-
-        //make sure that all of the points are within the joint limits
-        //  this is unnecessary, but nice for now.
-        //  TODO remove this.
-        assert( isWithinLimits( test ));
-    }
-}
-
 
 
 } /* namespace orchomp */

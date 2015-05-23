@@ -90,26 +90,10 @@ void mod::vectorToMat(const std::vector< OpenRAVE::dReal > & vec,
 
 
 void mod::getStateAsVector( const mopt::MatX & state,
-                                   std::vector< OpenRAVE::dReal > & vec ){
-
-    vec.resize( n_dof );
-    assert( state.size() == int( n_dof ) );
-    
-    for ( size_t i = 0; i < n_dof; i ++ ){
-        vec[i] = state(i);
-    }
-}
-
-
-void mod::getIthStateAsVector( size_t i, 
-                      std::vector< OpenRAVE::dReal > & state )
+                            std::vector< OpenRAVE::dReal > & vec )
 {
-    
-    const int width = chomper->getTrajectory().cols();
-    state.resize( width );
-    
-    mopt::MatMap( state.data(), 1, width ) = 
-                chomper->getTrajectory().row(i);
+    vec.resize( state.size() );
+    mopt::MatMap( vec.data(), state.rows(), state.cols() ) = state;
 }
 
 void mod::setActiveDOFValues( const mopt::MatX & qt ){
