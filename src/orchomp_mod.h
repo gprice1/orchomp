@@ -146,20 +146,20 @@ public:
 class mod : public OpenRAVE::ModuleBase
 {
 public:
+    
+    typedef pair<ORTSRConstraint*, pair<double, double> >
+            ConstraintInterval; 
 
     //____________________PUBLIC MEMBER VARIABLES____________________//
     OpenRAVE::EnvironmentBasePtr environment; /* filled on module creation */
     //the  start, and endpoints.
     mopt::MatX q0, q1;
 
-    //this is a pointer to the chomp class that will pull most of the
-    //   weight for the module.
-    mopt::MotionOptimizer * chomper;
+    mopt::MatX trajectory;
 
     //This holds information pertinent to the collision geometry, and
     //   assists chomp in computing collision gradients.
     SphereCollisionFunction * sphere_collider;
-    mopt::Observer * observer;
     
     //This holds basic info relating to an individual 
     //   run of chomp
@@ -186,7 +186,7 @@ public:
     std::vector< DistanceField > sdfs;
     
     //this vector holds all of the TSR's 
-    std::vector< ORTSRConstraint * > tsrs;
+    std::vector< constraint_interval > tsrs;
     
     //this is a timer for timing things.
     Timer timer;
@@ -307,13 +307,8 @@ public:
     /////The below functions are in the file orchomp_mod_utils.cpp/////
     ///////////////////////////////////////////////////////////////////
 public:
-    // A small helper function for creating a straight
-    //  line trajectory between two endpoints:
-    void createInitialTrajectory( mopt::MatX& trajectory);
-    //get the ith state in the trajectory matrix and turn it into an openrave
-    //  state vector.
-    void getIthStateAsVector( size_t i,
-                std::vector< OpenRAVE::dReal > & state  );
+
+
     //get a state matrix, and turn it into an openrave state vector
     void getStateAsVector( const mopt::MatX & state,
                 std::vector< OpenRAVE::dReal > & vec  );
