@@ -764,6 +764,7 @@ bool mod::iterate(std::ostream& sout, std::istream& sinput)
 				                         info.timeout_seconds,
 					                     info.max_global_iter);
 
+    std::cout << q0 << std::endl;
     chomper->getTrajectory().initialize(q0, q1, info.n );
 
     std::cout << "very early middle" << std::endl;
